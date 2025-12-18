@@ -1,0 +1,3 @@
+{
+  "/api/admin/delete-campaign": "pages/api/admin/delete-campaign.js"
+}

@@ -1,19 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Mock bcryptjs before importing the handler so the real module is not required
-vi.mock('bcryptjs', () => ({ hash: async (s, r) => `hashed:${s}` }))
+// Return a default export object so `import bcrypt from 'bcryptjs'` works in handlers
+vi.mock('bcryptjs', () => ({ default: { hash: async (s, r) => `hashed:${s}` } }))
 
-// Mock Prisma client singleton used in the handler
-const mockCreate = vi.fn()
+// Mock Prisma client singleton used in the handler.
+// Use a hoisted mock (vi.mock) but expose the internal mock to the test via a global
 vi.mock('@prisma/client', () => {
+  const mockCreateInternal = vi.fn()
+  // attach to global so the test can inspect/reset it after module import
+  global.__mockCreate = mockCreateInternal
   return {
     PrismaClient: function() {
-      return { user: { create: mockCreate } }
+      return { user: { create: mockCreateInternal } }
     }
   }
 })
 
 import handler from '../pages/api/auth/signup'
+
+// use the mock created by the mocked module
+const mockCreate = global.__mockCreate
 
 function makeReq(body) {
   return { method: 'POST', body }

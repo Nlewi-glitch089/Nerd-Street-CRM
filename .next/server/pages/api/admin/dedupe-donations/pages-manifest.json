@@ -1,0 +1,3 @@
+{
+  "/api/admin/dedupe-donations": "pages/api/admin/dedupe-donations.js"
+}

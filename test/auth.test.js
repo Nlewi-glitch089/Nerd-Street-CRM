@@ -26,6 +26,8 @@ beforeAll(async () => {
   // ensure a fresh test user
   const email = `test.user+${Date.now()}@example.com`
   testUser = await prisma.user.create({ data: { name: 'Test User', email, password: 'secret123', role: 'TEAM_MEMBER' } })
+  // expose the Prisma instance to handlers that use the global singleton
+  global.__prisma = prisma
 })
 
 afterAll(async () => {

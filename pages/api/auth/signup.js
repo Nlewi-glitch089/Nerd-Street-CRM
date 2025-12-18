@@ -1,12 +1,5 @@
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-
-// create a singleton Prisma client in dev to avoid hot-reload connection issues
-let prisma
-if (!global.__prisma) {
-  global.__prisma = new PrismaClient()
-}
-prisma = global.__prisma
+import { getPrisma } from '../../../lib/prisma'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -35,6 +28,7 @@ export default async function handler(req, res) {
     const lastName = rest.length ? rest.join(' ') : null
 
     // hash password before storing
+    const prisma = getPrisma()
     const hashed = await bcrypt.hash(passwordStr, 10)
     const user = await prisma.user.create({
       data: {
@@ -48,7 +42,8 @@ export default async function handler(req, res) {
     return res.status(201).json({ ok: true, id: user.id })
   } catch (err) {
     // Prisma unique constraint error handling
-    const message = err?.meta?.target ? `A record already exists for: ${err.meta.target}` : err.message
+    console.error('signup handler error', err)
+    const message = err?.meta?.target ? `A record already exists for: ${err.meta.target}` : (err && err.message) || String(err)
     return res.status(500).json({ error: message })
   }
 }
