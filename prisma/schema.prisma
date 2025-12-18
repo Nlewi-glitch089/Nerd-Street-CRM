@@ -1,0 +1,78 @@
+// Prisma schema for Nerd Street CRM
+// Uses PostgreSQL (Neon) via DATABASE_URL in .env.local
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TEAM_MEMBER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      Role     @default(TEAM_MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Donor {
+  id           String    @id @default(uuid())
+  firstName    String
+  lastName     String?
+  email        String?   @unique
+  phone        String?
+  notes        String?
+  city         String?
+  state        String?
+  zipcode      String?
+  active       Boolean   @default(true)
+  totalGiving  Float     @default(0)
+  lastGiftAt   DateTime?
+  donations    Donation[]
+  tasks        Task[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Donation {
+  id         String   @id @default(uuid())
+  donor      Donor    @relation(fields: [donorId], references: [id])
+  donorId    String
+  amount     Float
+  method     String?
+  notes      String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String?
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model Task {
+  id        String   @id @default(uuid())
+  donor     Donor?   @relation(fields: [donorId], references: [id])
+  donorId   String?
+  title     String
+  notes     String?
+  dueAt     DateTime?
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Campaign {
+  id        String     @id @default(uuid())
+  name      String
+  goal      Float?
+  approved  Boolean    @default(false)
+  donations Donation[]
+  createdAt DateTime   @default(now())
+}

@@ -1,0 +1,3 @@
+{
+  "/api/users/[id]/role": "pages/api/users/[id]/role.js"
+}

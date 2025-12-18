@@ -1,0 +1,21 @@
+{
+  "/": "pages/index.js",
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/_error": "pages/_error.js",
+  "/admin": "pages/admin.js",
+  "/admin/campaigns": "pages/admin/campaigns.js",
+  "/admin/donors": "pages/admin/donors.js",
+  "/api/analytics": "pages/api/analytics.js",
+  "/api/auth/login": "pages/api/auth/login.js",
+  "/api/campaigns": "pages/api/campaigns.js",
+  "/api/donors": "pages/api/donors.js",
+  "/api/donors/[id]": "pages/api/donors/[id].js",
+  "/api/protected": "pages/api/protected.js",
+  "/api/seed": "pages/api/seed.js",
+  "/api/users": "pages/api/users.js",
+  "/api/users/[id]/role": "pages/api/users/[id]/role.js",
+  "/partners/[slug]": "pages/partners/[slug].js",
+  "/profile": "pages/profile.js",
+  "/team": "pages/team.js"
+}
