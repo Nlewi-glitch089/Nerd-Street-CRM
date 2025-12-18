@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preinstall": "prisma generate && prisma db pull",
+    "preinstall": "prisma generate",
+    "postinstall": "prisma db pull",
     "start": "next start",
     "migrate:hash-passwords": "node scripts/migrate-passwords.js",
     "prisma": "prisma",
