@@ -137,7 +137,7 @@ function RecentActivityList(){
       const timeout = setTimeout(() => controller.abort(), 6000)
       try{
         const token = (()=>{ try{ return localStorage.getItem('token') }catch(e){return null} })()
-        const res = await fetch('/api/seed', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, signal: controller.signal })
+        const res = await fetch('/api/seed', { signal: controller.signal })
         if (res.ok){
           const d = await res.json().catch(()=>null)
           if (mounted) {

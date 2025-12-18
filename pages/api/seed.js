@@ -8,6 +8,52 @@ if (!global.__prisma) {
 prisma = global.__prisma
 
 export default async function handler(req, res) {
+  // Support GET for a read-only preview of the seed/payload (no DB writes).
+  if (req.method === 'GET') {
+    try {
+      try { await prisma.$connect() } catch (connErr) { console.error('Prisma connection error (GET seed)', connErr); return res.status(500).json({ error: 'Database connection failed', details: String(connErr && connErr.message ? connErr.message : connErr) }) }
+      // Build read-only payload from DB similar to POST's final payload
+      const totalDonors = await prisma.donor.count()
+      const allDonations = await prisma.donation.findMany()
+      const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
+      const campaignsWithDonations = await prisma.campaign.findMany({ include: { donations: true } })
+      const campaignStats = campaignsWithDonations.map(c => {
+        const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
+        const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
+        return { id: c.id, name: c.name, goal: c.goal, raised, gifted }
+      })
+      const donorsWithDonations = await prisma.donor.findMany({ include: { donations: true } })
+      const donorStats = donorsWithDonations.map(d => ({ id: d.id, name: `${d.firstName} ${d.lastName||''}`.trim(), email: d.email, totalGiving: d.donations.reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), giftedTotal: d.donations.filter(dd=>{ try{ const m=String(dd.method||'').toLowerCase(); const n=String(dd.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) }catch(e){return false} }).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), gifts: d.donations.length, lastGiftAt: d.lastGiftAt }))
+
+      const metricsPayload = [
+        { title: 'Total Partners', value: '4', sub: '2 active' },
+        { title: 'Active Programs', value: String((campaignStats && campaignStats.length) || 0), sub: 'Running programs' },
+        { title: 'Total Revenue', value: '$' + ((totalRevenue && totalRevenue.toLocaleString) ? totalRevenue.toLocaleString() : String(totalRevenue || 0)), sub: 'From all programs' },
+        { title: 'Total Donors', value: String(totalDonors || 0), sub: 'Individuals who gave' },
+        { title: 'Team Reminders', value: '0', sub: 'Action items pending' }
+      ]
+
+      const payload = {
+        metrics: metricsPayload,
+        partners: [],
+        donors: [],
+        campaigns: [],
+        recentActivity: [],
+        alerts: [],
+        tasks: [],
+        followUps: [],
+        analytics: { totalDonors, totalRevenue, campaignStats, donorStats }
+      }
+
+      return res.status(200).json(payload)
+    } catch (err) {
+      console.error('Seed (GET) error', err)
+      return res.status(500).json({ error: 'Seed preview failed', details: String(err && err.message ? err.message : err) })
+    } finally {
+      try { await prisma.$disconnect() } catch(e){}
+    }
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
