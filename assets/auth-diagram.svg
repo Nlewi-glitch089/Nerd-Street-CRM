@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" style="background:#0b0b0b; font-family:Inter, Roboto, Arial, sans-serif">
+  <style>
+    .title { fill: #39ff14; font-weight:700; font-size:20px }
+    .label { fill: #ddd; font-size:14px }
+    .box { fill: #0f0f0f; stroke: #222; stroke-width:2; rx:8 }
+    .accent { stroke: #39ff14 }
+    .arrow { stroke: #39ff14; stroke-width:2; fill:none; marker-end: url(#arrowhead) }
+  </style>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#39ff14" />
+    </marker>
+  </defs>
+
+  <text x="28" y="36" class="title">Authentication Flow — Reference Diagram</text>
+  <text x="28" y="58" class="label">(Downloadable SVG — screenshot-friendly)</text>
+
+  <!-- Left column: User & Client -->
+  <rect x="40" y="100" width="220" height="80" class="box" />
+  <text x="70" y="140" class="label">User</text>
+  <text x="70" y="160" class="label">(Browser / Mobile App)</text>
+
+  <rect x="40" y="220" width="320" height="110" class="box" />
+  <text x="70" y="255" class="label">Client App</text>
+  <text x="70" y="275" class="label">UI pages (Next.js)</text>
+  <text x="70" y="295" class="label">- /login, /signup, localStorage</text>
+
+  <!-- Center column: Server / Auth -->
+  <rect x="420" y="120" width="360" height="160" class="box" />
+  <text x="450" y="150" class="label">Next.js API Routes</text>
+  <text x="450" y="170" class="label">- /api/auth/login</text>
+  <text x="450" y="190" class="label">- /api/auth/signup</text>
+  <text x="450" y="210" class="label">- /api/protected & other endpoints</text>
+
+  <rect x="420" y="300" width="360" height="120" class="box" />
+  <text x="450" y="330" class="label">lib/auth.js</text>
+  <text x="450" y="350" class="label">- password hashing (bcrypt)</text>
+  <text x="450" y="370" class="label">- JWT sign/verify</text>
+
+  <!-- Right column: DB -->
+  <rect x="820" y="180" width="300" height="160" class="box" />
+  <text x="850" y="210" class="label">Prisma / Database</text>
+  <text x="850" y="230" class="label">- users table (email, hash, role)</text>
+  <text x="850" y="250" class="label">- donations, campaigns, etc.</text>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M260,140 L420,140" />
+  <text x="300" y="130" class="label">credentials POST</text>
+
+  <path class="arrow" d="M360,270 L420,270" />
+  <text x="300" y="260" class="label">API call (login/signup)</text>
+
+  <path class="arrow" d="M780,180 L820,220" />
+  <text x="660" y="190" class="label">lib/auth uses DB</text>
+
+  <path class="arrow" d="M700,230 L820,230" />
+  <text x="590" y="220" class="label">Prisma queries (user lookup)</text>
+
+  <path class="arrow" d="M780,320 L820,320" />
+  <text x="630" y="300" class="label">JWT sign → token</text>
+
+  <path class="arrow" d="M740,280 L960,280" />
+  <text x="820" y="265" class="label">Return access token (Bearer)</text>
+
+  <!-- Client stores token -->
+  <path class="arrow" d="M370,260 L260,260" />
+  <text x="300" y="250" class="label">Response: token</text>
+
+  <path class="arrow" d="M260,300 L420,300" />
+  <text x="300" y="290" class="label">Client stores token → localStorage</text>
+
+  <!-- Protected request flow -->
+  <path class="arrow" d="M360,340 L420,360" />
+  <text x="300" y="350" class="label">Client calls protected API with Authorization header</text>
+
+  <path class="arrow" d="M780,360 L820,360" />
+  <text x="620" y="360" class="label">Server verifies JWT via lib/auth.js</text>
+
+  <path class="arrow" d="M860,420 L700,420" />
+  <text x="760" y="410" class="label">If valid → process request & return data</text>
+
+  <!-- Notes box -->
+  <rect x="40" y="460" width="1080" height="180" rx="8" class="box" />
+  <text x="70" y="488" class="label">Notes:</text>
+  <text x="70" y="508" class="label">- Dev-only endpoints (e.g. /api/dev/*) are protected by NODE_ENV checks and should not run in production.</text>
+  <text x="70" y="528" class="label">- Consider refresh token flow if you need long-lived sessions; currently token is stored client-side.</text>
+  <text x="70" y="548" class="label">- Password resets, email verification, and rate-limiting are recommended for production readiness.</text>
+
+</svg>
