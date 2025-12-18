@@ -1,3 +1,0 @@
-{
-  "/api/campaigns/[id]/approve": "pages/api/campaigns/[id]/approve.js"
-}
