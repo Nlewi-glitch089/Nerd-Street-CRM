@@ -1,1 +1,1 @@
-export * from '../../lib/auth'
+export { signToken, verifyToken, getUserFromToken } from '../../lib/auth'
