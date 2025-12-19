@@ -16,7 +16,7 @@ export default async function handler(req, res) {
       const totalDonors = await prisma.donor.count()
       const allDonations = await prisma.donation.findMany()
       const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const campaignsWithDonations = await prisma.campaign.findMany({ include: { donations: true } })
+      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: true } })
       const campaignStats = campaignsWithDonations.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
@@ -76,14 +76,14 @@ export default async function handler(req, res) {
     const approvedCampaignNames = new Set(['Back-to-School Supply Drive', 'Summer Youth Programs Fund', 'Holiday Giving Drive 2025'])
     for (const cd of desiredCampaigns) {
       try {
-        let c = await prisma.campaign.findFirst({ where: { name: cd.name } })
+        let c = await prisma.campaigns.findFirst({ where: { name: cd.name } })
         if (!c) {
-          c = await prisma.campaign.create({ data: { name: cd.name, goal: cd.goal, approved: approvedCampaignNames.has(cd.name) } })
+          c = await prisma.campaigns.create({ data: { name: cd.name, goal: cd.goal, approved: approvedCampaignNames.has(cd.name) } })
         } else {
           // ensure existing campaigns that should be approved are marked approved
           if (approvedCampaignNames.has(cd.name) && !c.approved) {
             try {
-              c = await prisma.campaign.update({ where: { id: c.id }, data: { approved: true } })
+              c = await prisma.campaigns.update({ where: { id: c.id }, data: { approved: true } })
             } catch (uerr) {
               console.warn('Failed to update campaign approved flag for', cd.name, uerr)
             }
@@ -246,7 +246,7 @@ export default async function handler(req, res) {
       const totalDonors = await prisma.donor.count()
       const allDonations = await prisma.donation.findMany()
       const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const campaignsWithDonations = await prisma.campaign.findMany({ include: { donations: true } })
+      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: true } })
       const campaignStats = campaignsWithDonations.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)

@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     // per-campaign totals
-    const campaigns = await prisma.campaign.findMany({ include: { donations: true } })
+    const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
     const campaignStats = campaigns.map(c => {
       const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
       const gifted = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
