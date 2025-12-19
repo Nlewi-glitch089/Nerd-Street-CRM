@@ -56,7 +56,7 @@ model Task {
   donor     Donor?    @relation(fields: [donorId], references: [id])
 }
 
-model Campaign {
+model Campaigns {
   id        String     @id @default(uuid())
   name      String
   goal      Float?
