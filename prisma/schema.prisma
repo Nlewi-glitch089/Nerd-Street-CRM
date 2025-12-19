@@ -41,7 +41,7 @@ model Donation {
   date       DateTime  @default(now())
   createdAt  DateTime  @default(now())
   notes      String?
-  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaign   Campaigns? @relation(fields: [campaignId], references: [id])
   donor      Donor     @relation(fields: [donorId], references: [id])
 }
 
