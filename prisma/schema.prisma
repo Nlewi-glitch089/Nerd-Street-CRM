@@ -1,6 +1,3 @@
-// Prisma schema for Nerd Street CRM
-// Uses PostgreSQL (Neon) via DATABASE_URL in .env.local
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,11 +5,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-enum Role {
-  TEAM_MEMBER
-  ADMIN
 }
 
 model User {
@@ -26,53 +18,60 @@ model User {
 }
 
 model Donor {
-  id           String    @id @default(uuid())
-  firstName    String
-  lastName     String?
-  email        String?   @unique
-  phone        String?
-  notes        String?
-  city         String?
-  state        String?
-  zipcode      String?
-  active       Boolean   @default(true)
-  totalGiving  Float     @default(0)
-  lastGiftAt   DateTime?
-  donations    Donation[]
-  tasks        Task[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String     @id @default(uuid())
+  firstName   String
+  lastName    String?
+  email       String?    @unique
+  phone       String?
+  notes       String?
+  totalGiving Float      @default(0)
+  lastGiftAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  donations   Donation[]
+  tasks       Task[]
 }
 
 model Donation {
-  id         String   @id @default(uuid())
-  donor      Donor    @relation(fields: [donorId], references: [id])
+  id         String    @id @default(uuid())
   donorId    String
   amount     Float
   method     String?
+  campaignId String?
+  date       DateTime  @default(now())
+  createdAt  DateTime  @default(now())
   notes      String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
-  campaignId String?
-  date       DateTime @default(now())
-  createdAt  DateTime @default(now())
+  donor      Donor     @relation(fields: [donorId], references: [id])
 }
 
 model Task {
-  id        String   @id @default(uuid())
-  donor     Donor?   @relation(fields: [donorId], references: [id])
+  id        String    @id @default(uuid())
   donorId   String?
   title     String
   notes     String?
   dueAt     DateTime?
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  completed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  donor     Donor?    @relation(fields: [donorId], references: [id])
 }
 
 model Campaign {
   id        String     @id @default(uuid())
   name      String
   goal      Float?
-  approved  Boolean    @default(false)
-  donations Donation[]
   createdAt DateTime   @default(now())
+  approved   Boolean?
+  donations Donation[]
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+enum Role {
+  TEAM_MEMBER
+  ADMIN
 }
