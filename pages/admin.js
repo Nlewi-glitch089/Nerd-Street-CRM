@@ -59,6 +59,7 @@ export default function Admin() {
       try {
         const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
         if (!token) {
+          try { router.replace('/signin') } catch (e) {}
           if (mounted) setError('Not authenticated')
           return
         }
@@ -84,6 +85,7 @@ export default function Admin() {
             loadUsers(data.user).catch(()=>{})
           loadCampaigns().catch(()=>{})
           loadAnalytics().catch(()=>{})
+          loadDonors().catch(()=>{})
         }
       } catch (err) {
         if (mounted) setError('Network error')
@@ -225,6 +227,44 @@ export default function Admin() {
             }
           }
 
+          // load donors so the admin dashboard shows live donor/donation data on sign-in
+          async function loadDonors(){
+            try{
+              const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+              const res = await fetch('/api/donors', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+              if (!res.ok) {
+                console.warn('loadDonors: /api/donors responded', res.status)
+                // still attempt to load analytics as a fallback
+              }
+              const data = await res.json().catch(()=>null)
+              const list = (data && data.donors) ? data.donors : []
+              if (!list || list.length === 0) {
+                // attempt to seed server-side data and reload
+                try {
+                  const seeded = await seedSampleData()
+                  if (seeded && Array.isArray(seeded.donors)) {
+                    setDonors(seeded.donors)
+                    return
+                  }
+                } catch (e) { console.warn('Auto-seed donors failed', e) }
+                setDonors([])
+                return
+              }
+              // try to enrich donors with analytics donorStats when available
+              try{
+                const aRes = await fetch('/api/analytics')
+                if (aRes.ok) {
+                  const aData = await aRes.json()
+                  const map = (aData.donorStats || []).reduce((acc,x)=>{ acc[x.id]=x; return acc }, {})
+                  const enriched = list.map(d => ({ ...d, totalGiving: (map[d.id] && (map[d.id].totalGiving || map[d.id].totalGiving)) || d.totalGiving || 0, giftedTotal: (map[d.id] && (map[d.id].giftedTotal || map[d.id].gifted)) || (d.giftedTotal || 0) }))
+                  setDonors(enriched)
+                  return
+                }
+                setDonors(list)
+              }catch(e){ console.warn('Enrich donors failed', e); setDonors(list) }
+            }catch(e){ console.warn('loadDonors failed', e) }
+          }
+
           async function loadCampaigns(){
             try{
               const res = await fetch('/api/campaigns')
@@ -305,7 +345,7 @@ export default function Admin() {
             const t = String(tag).toLowerCase()
             if (t.includes('risk')) return '#ff4d4d'
             if (t.includes('pending')) return '#ffcc00'
-            if (t.includes('active')) return 'var(--color-neon, #39ff14)'
+            if (t.includes('active')) return 'var(--color-neon)'
             return '#999'
           }
 
@@ -364,14 +404,14 @@ export default function Admin() {
             // prefer live analytics if present
             if (analyticsData) {
               const campaignSum = Array.isArray(analyticsData.campaignStats) ? analyticsData.campaignStats.reduce((s,c)=>s + (Number(c.raised||0)||0),0) : 0
-              const donorTotal = Array.isArray(analyticsData.donorStats) ? analyticsData.donorStats.reduce((s,d)=>s + (Number(d.totalGiving||0)||0),0) : 0
-              // Total revenue should not double-count: prefer donor total (total inflow) when available,
-              // otherwise fallback to campaign sums. Use the larger to be conservative.
-              const totalCombined = Math.max(donorTotal || 0, campaignSum || 0)
+              const donationsSum = Array.isArray(analyticsData.donorStats) ? analyticsData.donorStats.reduce((s,d)=>s + (Number(d.totalGiving||0)||0),0) : 0
+              const giftedSum = Array.isArray(analyticsData.campaignStats) ? analyticsData.campaignStats.reduce((s,c)=>s + (Number(c.gifted || c.giftedRaised || 0)||0),0) : 0
+              // Total revenue = donations (donor-given money) + gifted/in-kind amounts from campaigns
+              const totalCombined = (donationsSum || 0) + (giftedSum || 0)
               return [
-                { title: 'Campaign Revenue', value: '$' + (campaignSum.toLocaleString ? campaignSum.toLocaleString() : campaignSum), sub: 'From campaign allocations' },
-                { title: 'Donor Revenue', value: '$' + (donorTotal.toLocaleString ? donorTotal.toLocaleString() : donorTotal), sub: 'Gifts from donors' },
-                { title: 'Total Revenue', value: '$' + (totalCombined.toLocaleString ? totalCombined.toLocaleString() : totalCombined), sub: 'Unique total (no double-counting)' }
+                { title: 'Campaign Revenue', value: '$' + (campaignSum.toLocaleString ? campaignSum.toLocaleString() : campaignSum), sub: 'From campaign allocations (donations + gifted)' },
+                { title: 'Donations', value: '$' + (donationsSum.toLocaleString ? donationsSum.toLocaleString() : donationsSum), sub: 'Monetary gifts from donors' },
+                { title: 'Total Revenue', value: '$' + (totalCombined.toLocaleString ? totalCombined.toLocaleString() : totalCombined), sub: 'Donations + in-kind / gifted amounts' }
               ]
             }
             // otherwise fall back to any provided metrics array
@@ -458,9 +498,7 @@ export default function Admin() {
                   })()}
                 </div>
                 <div style={{display:'flex', gap:12}}>
-                  {typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production' && (
-                    <button className="btn" onClick={persistSeedShow} disabled={seedLoading} style={{background:'#ffb347', color:'#000'}}>{seedLoading ? 'Seeding...' : 'Persist Seed (dev)'}</button>
-                  )}
+                  {/* Persist Seed button removed for production-like admin UX; seeding still runs automatically when APIs return empty data. */}
                   <button className="btn btn-ghost" onClick={handleSignOut}>Logout</button>
                 </div>
               </header>
@@ -613,14 +651,12 @@ export default function Admin() {
                         <div>
                           <div style={{display:'flex', gap:12}}>
                             {(() => {
-                              const MIN_DONOR_TOTAL = 100000
-                              const campaignSum = Array.isArray(analyticsData?.campaignStats) ? analyticsData.campaignStats.reduce((s,c)=>s + (Number(c.raised||0)||0),0) : 0
-                              const donorRaw = Array.isArray(analyticsData?.donorStats) ? analyticsData.donorStats.reduce((s,d)=>s + (Number(d.totalGiving||0)||0),0) : 0
-                              const donorTotal = Math.max(donorRaw || 0, MIN_DONOR_TOTAL)
-                              // avoid double-counting: donorTotal represents total inflow and typically includes campaign-assigned gifts
-                              const totalCombined = Math.max(donorTotal || 0, campaignSum || 0)
-                              const donorsCount = analyticsData?.totalDonors ?? analyticsData?.donorCount ?? 0
-                              const activePrograms = Array.isArray(analyticsData?.campaignStats) ? analyticsData.campaignStats.length : (Array.isArray(campaignsList) ? campaignsList.length : 0)
+                                const campaignSum = Array.isArray(analyticsData?.campaignStats) ? analyticsData.campaignStats.reduce((s,c)=>s + (Number(c.raised||0)||0),0) : 0
+                                const donationsSum = Array.isArray(analyticsData?.donorStats) ? analyticsData.donorStats.reduce((s,d)=>s + (Number(d.totalGiving||0)||0),0) : 0
+                                const giftedSum = Array.isArray(analyticsData?.campaignStats) ? analyticsData.campaignStats.reduce((s,c)=>s + (Number(c.gifted || c.giftedRaised || 0)||0),0) : 0
+                                const totalCombined = (donationsSum || 0) + (giftedSum || 0)
+                                const donorsCount = analyticsData?.totalDonors ?? analyticsData?.donorCount ?? 0
+                                const activePrograms = Array.isArray(analyticsData?.campaignStats) ? analyticsData.campaignStats.length : (Array.isArray(campaignsList) ? campaignsList.length : 0)
                               return (
                                 <>
                                   <div style={{flex:1, border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:6}}>
@@ -632,8 +668,8 @@ export default function Admin() {
                                     <div style={{fontSize:24, marginTop:8}}>${(campaignSum).toLocaleString ? (campaignSum).toLocaleString() : campaignSum}</div>
                                   </div>
                                   <div style={{flex:1, border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:6}}>
-                                    <div style={{color:'var(--color-neon)', fontWeight:700}}>Donor Revenue</div>
-                                    <div style={{fontSize:24, marginTop:8}}>${(donorTotal).toLocaleString ? (donorTotal).toLocaleString() : donorTotal}</div>
+                                    <div style={{color:'var(--color-neon)', fontWeight:700}}>Donations</div>
+                                    <div style={{fontSize:24, marginTop:8}}>${(donationsSum).toLocaleString ? (donationsSum).toLocaleString() : donationsSum}</div>
                                   </div>
                                   <div style={{flex:1, border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:6}}>
                                     <div style={{color:'var(--color-neon)', fontWeight:700}}>Total Revenue</div>

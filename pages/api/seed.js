@@ -8,10 +8,13 @@ if (!global.__prisma) {
 prisma = global.__prisma
 
 export default async function handler(req, res) {
+  console.debug('Seed handler invoked, method=', req.method)
+  let phase = 'start'
   // Support GET for a read-only preview of the seed/payload (no DB writes).
   if (req.method === 'GET') {
     try {
-      try { await prisma.$connect() } catch (connErr) { console.error('Prisma connection error (GET seed)', connErr); return res.status(500).json({ error: 'Database connection failed', details: String(connErr && connErr.message ? connErr.message : connErr) }) }
+      console.debug('Seed (GET) starting DB reads')
+      try { await prisma.$connect() } catch (connErr) { console.error('Prisma connection error (GET seed)', connErr); return res.status(500).json({ error: 'Database connection failed', details: String(connErr && connErr.message ? connErr.message : connErr), phase: 'connect-get' }) }
       // Build read-only payload from DB similar to POST's final payload
       const totalDonors = await prisma.donor.count()
       const allDonations = await prisma.donation.findMany()
@@ -49,14 +52,14 @@ export default async function handler(req, res) {
     } catch (err) {
       console.error('Seed (GET) error', err)
       return res.status(500).json({ error: 'Seed preview failed', details: String(err && err.message ? err.message : err) })
-    } finally {
-      try { await prisma.$disconnect() } catch(e){}
     }
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
+    console.debug('Seed (POST) starting')
+    phase = 'connect'
     // quick DB connectivity check
     try {
       await prisma.$connect()
@@ -76,6 +79,8 @@ export default async function handler(req, res) {
     const approvedCampaignNames = new Set(['Back-to-School Supply Drive', 'Summer Youth Programs Fund', 'Holiday Giving Drive 2025'])
     for (const cd of desiredCampaigns) {
       try {
+        phase = `ensure-campaign:${cd.name}`
+        console.debug('Ensuring campaign exists:', cd.name)
         let c = await prisma.campaigns.findFirst({ where: { name: cd.name } })
         if (!c) {
           c = await prisma.campaigns.create({ data: { name: cd.name, goal: cd.goal, approved: approvedCampaignNames.has(cd.name) } })
@@ -100,17 +105,25 @@ export default async function handler(req, res) {
     const campaignHoliday = campaignsByName['Holiday Giving Drive 2025']
 
     // create sample donors
-    const donor1 = await prisma.donor.upsert({
+    let donor1
+    try {
+      phase = 'upsert-donor1'
+      donor1 = await prisma.donor.upsert({
       where: { email: 'nate.marshall@example.com' },
       update: {},
       create: { firstName: 'Nate', lastName: 'Marshall', email: 'nate.marshall@example.com', totalGiving: 12500, lastGiftAt: new Date('2025-03-03') }
     })
+    } catch (e) { console.error('Failed to upsert donor1', e); throw e }
 
-    const donor2 = await prisma.donor.upsert({
+    let donor2
+    try {
+      phase = 'upsert-donor2'
+      donor2 = await prisma.donor.upsert({
       where: { email: 'evelyn.hart@example.com' },
       update: {},
       create: { firstName: 'Evelyn', lastName: 'Hart', email: 'evelyn.hart@example.com', totalGiving: 4200, lastGiftAt: new Date('2025-01-12') }
     })
+    } catch (e) { console.error('Failed to upsert donor2', e); throw e }
 
     // create additional sample donors (to ensure /admin/donors shows a fuller list)
     const extraDonorsData = [
@@ -126,64 +139,76 @@ export default async function handler(req, res) {
     const extraDonors = []
     for (const d of extraDonorsData) {
       try {
+        phase = `upsert-extra-donor:${d.email}`
         const up = await prisma.donor.upsert({ where: { email: d.email }, update: {}, create: { firstName: d.firstName, lastName: d.lastName, email: d.email, totalGiving: d.totalGiving || 0, lastGiftAt: d.lastGiftAt || null } })
         extraDonors.push(up)
       } catch (e) {
         console.warn('Failed to upsert extra donor', d.email, e)
       }
     }
-
-    // create sample donations
-        // create sample users (admin + team members)
-        // ensure seeded users use hashed passwords to match auth expectations
-        const seededPasswordHash = await bcrypt.hash('password123', 10)
-        const adminUser = await prisma.user.upsert({
+    try {
+      const seededPasswordHash = await bcrypt.hash('password123', 10)
+      const adminUser = await prisma.user.upsert({
           where: { email: 'rob.admin@example.com' },
           update: {},
           create: { name: 'Rob Admin', email: 'rob.admin@example.com', password: seededPasswordHash, role: 'ADMIN' }
-        })
-
-        const nick = await prisma.user.upsert({
+      })
+      const nick = await prisma.user.upsert({
           where: { email: 'nick.team@example.com' },
           update: {},
           create: { name: 'Nick Thompson', email: 'nick.team@example.com', password: seededPasswordHash, role: 'TEAM_MEMBER' }
-        })
-
-        const matt = await prisma.user.upsert({
+      })
+      const matt = await prisma.user.upsert({
           where: { email: 'matt.team@example.com' },
           update: {},
           create: { name: 'Matt Lane', email: 'matt.team@example.com', password: seededPasswordHash, role: 'TEAM_MEMBER' }
-        })
+      })
+    } catch (e) {
+      console.error('Failed to upsert seeded users', e)
+      throw e
+    }
     // create donations (omit `notes` because DonationCreateManyInput doesn't include it in schema)
     // IMPORTANT: make donation seeding idempotent. If donations already exist in the DB,
     // skip inserting the sample donations so repeated runs of this endpoint don't
     // keep inflating `totalRevenue` by inserting duplicates.
     const existingDonationsCount = await prisma.donation.count()
     if (existingDonationsCount === 0) {
-      await prisma.donation.createMany({
-        data: [
-          // Nate Marshall donations (total 12,500) — include a gift-marked donation
-          { donorId: donor1.id, amount: 7500, campaignId: campaign1.id, date: new Date('2025-03-03'), method: 'GIFT' },
-          { donorId: donor1.id, amount: 5000, campaignId: campaign1.id, date: new Date('2025-02-20'), method: 'CARD' },
-          // extra donation so Back-to-School Supply Drive reaches its goal
-          { donorId: donor1.id, amount: 2500, campaignId: campaign1.id, date: new Date('2025-03-10'), method: 'CARD' },
+      // build donation rows and filter out any entries that reference missing donor or campaign ids
+      const rawDonationData = [
+        { donorId: donor1?.id, amount: 7500, campaignId: campaign1?.id, date: new Date('2025-03-03'), method: 'GIFT' },
+        { donorId: donor1?.id, amount: 5000, campaignId: campaign1?.id, date: new Date('2025-02-20'), method: 'CARD' },
+        { donorId: donor1?.id, amount: 2500, campaignId: campaign1?.id, date: new Date('2025-03-10'), method: 'CARD' },
+        { donorId: donor1?.id, amount: 40000, campaignId: campaignHoliday?.id, date: new Date('2025-12-01'), method: 'CARD' },
+        { donorId: donor2?.id, amount: 200, campaignId: campaign2?.id, date: new Date('2025-01-12'), method: 'GIFT' },
+        { donorId: donor2?.id, amount: 4000, campaignId: campaign2?.id, date: new Date('2024-12-18'), method: 'CHECK' },
+        { donorId: extraDonors[0]?.id, amount: 1200, campaignId: campaign1?.id, date: new Date('2025-11-01'), method: 'CARD' },
+        { donorId: extraDonors[1]?.id, amount: 500, campaignId: campaign2?.id, date: new Date('2025-09-18'), method: 'CARD' },
+        { donorId: extraDonors[2]?.id, amount: 300, campaignId: campaign2?.id, date: new Date('2025-08-10'), method: 'CHECK' },
+        { donorId: extraDonors[4]?.id, amount: 750, campaignId: campaign1?.id, date: new Date('2025-07-04'), method: 'CARD' },
+        { donorId: extraDonors[5]?.id, amount: 2500, campaignId: campaign1?.id, date: new Date('2025-06-21'), method: 'CARD' },
+        { donorId: extraDonors[7]?.id, amount: 1500, campaignId: campaign2?.id, date: new Date('2025-05-30'), method: 'CARD' }
+      ]
 
-          // boost Holiday Giving Drive 2025 with a large donation for better revenue display
-          { donorId: donor1.id, amount: 40000, campaignId: campaignHoliday.id, date: new Date('2025-12-01'), method: 'CARD' },
+      // Keep only rows that have both donorId and campaignId present (required by schema)
+      const donationData = rawDonationData.filter(d => d && d.donorId && d.campaignId)
 
-          // Evelyn Hart donations (total 4,200) — small gift + larger contribution
-          { donorId: donor2.id, amount: 200, campaignId: campaign2.id, date: new Date('2025-01-12'), method: 'GIFT' },
-          { donorId: donor2.id, amount: 4000, campaignId: campaign2.id, date: new Date('2024-12-18'), method: 'CHECK' },
-          // small donations for extra donors so they appear in donor lists and analytics
-          { donorId: extraDonors[0]?.id, amount: 1200, campaignId: campaign1.id, date: new Date('2025-11-01'), method: 'CARD' },
-          { donorId: extraDonors[1]?.id, amount: 500, campaignId: campaign2.id, date: new Date('2025-09-18'), method: 'CARD' },
-          { donorId: extraDonors[2]?.id, amount: 300, campaignId: campaign2.id, date: new Date('2025-08-10'), method: 'CHECK' },
-          { donorId: extraDonors[4]?.id, amount: 750, campaignId: campaign1.id, date: new Date('2025-07-04'), method: 'CARD' },
-          { donorId: extraDonors[5]?.id, amount: 2500, campaignId: campaign1.id, date: new Date('2025-06-21'), method: 'CARD' },
-          { donorId: extraDonors[7]?.id, amount: 1500, campaignId: campaign2.id, date: new Date('2025-05-30'), method: 'CARD' }
-        ],
-        skipDuplicates: true
-      })
+      if (donationData.length === 0) {
+        console.log('Seed: no valid donation rows to insert (missing donor or campaign ids)')
+      } else {
+        try {
+          await prisma.donation.createMany({ data: donationData, skipDuplicates: true })
+        } catch (e) {
+          // createMany failed; log details and try per-item create to surface the problematic row
+          console.error('Seed: createMany donations failed', e)
+          for (const row of donationData) {
+            try {
+              await prisma.donation.create({ data: row })
+            } catch (singleErr) {
+              console.error('Seed: failed to create donation row', { row, error: singleErr && (singleErr.stack || singleErr.message || String(singleErr)) })
+            }
+          }
+        }
+      }
     } else {
       console.log('Seed: donations already exist (count=' + existingDonationsCount + '), skipping donation creation to avoid duplicates')
     }
@@ -387,7 +412,5 @@ export default async function handler(req, res) {
     // return message and stack when possible to aid debugging in dev
     const details = err && err.stack ? err.stack : (err && err.message ? err.message : String(err))
     return res.status(500).json({ error: 'Seed failed', details })
-  } finally {
-    try { await prisma.$disconnect() } catch(e){}
   }
 }

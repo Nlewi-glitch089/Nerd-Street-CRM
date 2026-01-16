@@ -26,8 +26,8 @@ export default async function handler(req, res) {
 
   try {
     // basic aggregates
-    const campaignCount = await prisma.campaign.count()
-    const campaigns = await prisma.campaign.findMany({ include: { donations: true } })
+    const campaignCount = await prisma.campaigns.count()
+    const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
 
     const campaignStats = campaigns.map(c => {
       const raised = Array.isArray(c.donations) ? c.donations.reduce((s, d) => s + (Number(d.amount || 0) || 0), 0) : 0

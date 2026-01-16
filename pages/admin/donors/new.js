@@ -16,8 +16,16 @@ export default function NewDonor(){
       const res = await fetch('/api/donors', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify(form) })
       if (!res.ok) { const err = await res.json().catch(()=>({})); return setError(err.error || 'Failed to create donor') }
       const data = await res.json()
-      // navigate back to donors list
-      router.push('/admin/donors')
+      // show success message on the donors page and navigate back
+      const name = (data && data.donor && (data.donor.firstName || data.donor.email)) || ''
+      const target = `/admin/donors?added=1${name ? `&name=${encodeURIComponent(name)}` : ''}`
+      try {
+        // prefer client-side navigation
+        await router.push(target)
+      } catch (err) {
+        // fallback: force a full page load so the donors list is shown
+        try { window.location.href = target } catch (e) { /* ignore */ }
+      }
     }catch(e){ console.warn(e); setError('Network error') } finally { setLoading(false) }
   }
   if (loading) {

@@ -33,16 +33,16 @@ model Donor {
 }
 
 model Donation {
-  id         String    @id @default(uuid())
+  id         String     @id @default(uuid())
   donorId    String
   amount     Float
   method     String?
   campaignId String?
-  date       DateTime  @default(now())
-  createdAt  DateTime  @default(now())
+  date       DateTime   @default(now())
+  createdAt  DateTime   @default(now())
   notes      String?
   campaign   Campaigns? @relation(fields: [campaignId], references: [id])
-  donor      Donor     @relation(fields: [donorId], references: [id])
+  donor      Donor      @relation(fields: [donorId], references: [id])
 }
 
 model Task {
@@ -57,11 +57,11 @@ model Task {
 }
 
 model Campaigns {
-  id        String     @id @default(uuid())
+  id        String     @id(map: "Campaign_pkey") @default(uuid())
   name      String
   goal      Float?
   createdAt DateTime   @default(now())
-  approved   Boolean?
+  approved  Boolean?
   donations Donation[]
 }
 

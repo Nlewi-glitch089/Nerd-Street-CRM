@@ -226,10 +226,41 @@ Guiding Principle for Copilot
 
 Every feature, screen, and database interaction should support:
 
-Donor retention
+- Donor retention
 
-Relationship tracking
+- Relationship tracking
 
-Clear follow-up workflows
+- Clear follow-up workflows
 
 Avoid adding features that do not clearly support these goals.
+
+## Project 2.0 - Changes for Nerd Street CRM v2
+
+This workspace was refactored so first-time visitors see clear informational pages before signing in. Authenticated users use the full CRM dashboard and admin pages.
+
+### Features
+- Public landing pages: Home, The Problem, Why This CRM, AI Policy, Evidence, Reflection
+- Authentication: sign up and sign in (public), role-based access (admin vs team member)
+- Dashboard: summary stats pulled via API from app data
+- Donors & Donations: list, add, edit, link donations to donors, confirmations
+- AI insights: server-side AI route that analyzes aggregated data and returns suggestions
+
+### Tech Stack
+- Next.js (pages directory)
+- Server-side API routes (Next.js)
+- Prisma (schema in `prisma/schema.prisma`)
+
+### How to run locally
+1. Install dependencies:
+```bash
+npm install
+```
+2. Start dev server:
+```bash
+npm run dev
+```
+3. Open http://localhost:3000
+
+### Notes
+- Public pages are available without authentication. To access the CRM, click "Access Dashboard" and sign in.
+- The AI API (`/api/ai`) is a scaffolded endpoint returning mock insights. Replace with real model calls and proper sanitization in production.

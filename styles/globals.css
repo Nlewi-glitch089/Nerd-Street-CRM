@@ -4,6 +4,7 @@
 */
 :root{
   --color-neon: #2FFF55;
+  --color-neon-rgb: 47,255,85;
   --color-black: #000000;
   --color-off-black: #0D0D0D;
   --color-white: #FFFFFF;
@@ -191,6 +192,120 @@ select.input::-ms-expand{ display: none; }
 /* Dialog overlay helper */
 .dialog-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center;
+}
+
+/* Feature cards on the home page */
+.feature-card{
+  border-radius:12px;
+  padding:22px;
+  background: linear-gradient(180deg, rgba(8,8,8,0.6), rgba(6,6,6,0.3));
+  border:1px solid rgba(var(--color-neon-rgb),0.06);
+  box-shadow: 0 6px 18px rgba(var(--color-neon-rgb),0.03);
+  transition: transform var(--transition-medium), box-shadow var(--transition-medium), border-color var(--transition-fast);
+}
+.feature-card:hover{
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(var(--color-neon-rgb),0.08), var(--glow-neon);
+  border-color: rgba(var(--color-neon-rgb),0.14);
+}
+.feature-card h4{
+  margin:0; font-size:18px; font-weight:800; color:var(--color-neon);
+}
+.feature-card p{ margin:6px 0 0 0; color:#cfcfcf; font-size:15px }
+
+
+/* Problem page: split sections into card boxes */
+.problem-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+.problem-card{
+  padding:18px;
+  border-radius:10px;
+  background: linear-gradient(180deg, rgba(8,8,8,0.6), rgba(6,6,6,0.35));
+  border:1px solid rgba(var(--color-neon-rgb),0.06);
+  box-shadow: 0 8px 20px rgba(var(--color-neon-rgb),0.02);
+}
+.problem-card h3, .problem-card h4{ margin:0 0 6px 0 }
+.problem-card p{ margin:0; color:#d0d0d0; line-height:1.5 }
+
+/* Like button micro-animation */
+.like-btn{
+  width:36px;
+  height:36px;
+  border-radius:999px;
+  border:1px solid rgba(var(--color-neon-rgb),0.12);
+  background:transparent;
+  color:var(--color-neon);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition: transform 160ms ease, box-shadow 200ms ease, background 160ms ease;
+}
+.like-btn.pop{
+  animation: like-pop 320ms cubic-bezier(.2,.9,.3,1);
+}
+@keyframes like-pop{
+  0%{ transform: scale(1); box-shadow: none }
+  30%{ transform: scale(1.18); box-shadow: 0 8px 20px rgba(var(--color-neon-rgb),0.12) }
+  100%{ transform: scale(1); box-shadow: 0 6px 14px rgba(var(--color-neon-rgb),0.06) }
+}
+
+/* Small loading spinner used in header and CTA buttons */
+.spinner{
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.12);
+  border-top-color: var(--color-neon);
+  animation: spin 900ms linear infinite;
+  display:inline-block;
+}
+@keyframes spin{ to { transform: rotate(360deg) } }
+
+.btn.loading{ opacity:0.9; pointer-events:none }
+
+/* Full-page loader overlay */
+.page-loader{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: var(--color-black); /* solid overlay so underlying page is hidden */
+  z-index:9999;
+}
+.page-loader{
+  /* fade-in so the overlay doesn't appear abruptly */
+  animation: fade-in 220ms ease-out both;
+}
+
+@keyframes fade-in{
+  from{ opacity: 0 }
+  to{ opacity: 1 }
+}
+
+/* Immediate DOM-level overlay when `nsc-loading` class is present on <html>.
+   This avoids a flash by showing a solid overlay synchronously before React updates state. */
+.nsc-loading::before{
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: var(--color-black);
+  z-index: 9990; /* keep below the React page-loader (9999) so spinner is visible */
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 220ms ease-out;
+}
+.spinner-lg{
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  border:6px solid rgba(255,255,255,0.06);
+  border-top-color: var(--color-neon);
+  animation: spin 900ms linear infinite;
 }
 
 /* Utilities */

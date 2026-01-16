@@ -1,235 +1,116 @@
-import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useState, useEffect, useRef } from 'react'
 
 export default function Home() {
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState(null)
-
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('TEAM_MEMBER')
-  const [user, setUser] = useState(null)
   const router = useRouter()
-
-  async function handleSignUp(e) {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault()
-    setMessage(null)
-    if (!email || !password || !fullName) {
-      setMessage({ type: 'error', text: 'Please provide name, email and password.' })
-      return
-    }
-    const emailNorm = String(email || '').trim().toLowerCase()
-    // require corporate domain and safe local-part
-    const allowedDomain = '@nerdstgamers.com'
-    const localPartPattern = /^[a-z0-9._-]+$/
-    if (!emailNorm.endsWith(allowedDomain) || !localPartPattern.test(emailNorm.slice(0, -allowedDomain.length))) {
-      setMessage({ type: 'error', text: `Please use an email like name${allowedDomain} (letters, numbers, dot, underscore or hyphen allowed).` })
-      return
-    }
-    if (String(password).length < 8) {
-      setMessage({ type: 'error', text: 'Password must be at least 8 characters.' })
-      return
-    }
-    setLoading(true)
-    try {
-      // always create TEAM_MEMBER via public signup
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: fullName, email: emailNorm, password, role: 'TEAM_MEMBER' })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Signup failed')
-      setMessage({ type: 'success', text: 'Account created. You can now sign in.' })
-      // Optionally switch to sign-in mode
-      setMode('signin')
-      setFullName('')
-      setPassword('')
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleSignIn(e) {
-    if (e && typeof e.preventDefault === 'function') e.preventDefault()
-    setMessage(null)
-    if (!email || !password) {
-      setMessage({ type: 'error', text: 'Please provide email and password.' })
-      return
-    }
-    setLoading(true)
-    ;(async () => {
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data?.error || 'Login failed')
-        const token = data.token
-        // store token locally for subsequent requests (replace with cookie for production)
-        try { localStorage.setItem('token', token) } catch (e) {}
-        // verify protected endpoint
-        const p = await fetch('/api/protected', { headers: { Authorization: `Bearer ${token}` } })
-        const pd = await p.json()
-        if (!p.ok) throw new Error(pd?.error || 'Protected check failed')
-        // set user state so UI reflects logged-in status
-        setUser(pd.user || null)
-        const role = pd.user?.role || 'TEAM_MEMBER'
-        const roleLabel = role === 'ADMIN' ? 'Admin' : 'Team member'
-        // show a role-specific success + loading message so user sees which dashboard will load
-        setMessage({ type: 'success', text: `Successfully signed in as ${roleLabel}. Loading ${roleLabel} dashboard...` })
-        // give the user a moment (3.5s) to read the confirmation before navigating
-        try { await new Promise(r => setTimeout(r, 3500)) } catch (e) {}
-        if (role === 'ADMIN') await router.push('/admin')
-        else await router.push('/team')
-      } catch (err) {
-        setMessage({ type: 'error', text: err.message })
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }
-
-  const signupFormRef = useRef(null)
-  const signinFormRef = useRef(null)
-
-  function topSignUpClick() {
-    if (mode !== 'signup') {
-      setMode('signup')
-      setMessage(null)
-      return
-    }
-    // if already in signup mode, submit the signup form
-    if (signupFormRef.current) signupFormRef.current.requestSubmit()
-  }
-
-  function topSignInClick() {
-    if (mode !== 'signin') {
-      setMode('signin')
-      setMessage(null)
-      return
-    }
-    if (signinFormRef.current) signinFormRef.current.requestSubmit()
-  }
-
-  // check for existing token on mount and validate it
+  // redirect signed-in users to admin dashboard
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
+    const check = async () => {
       try {
         const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
         if (!token) return
         const res = await fetch('/api/protected', { headers: { Authorization: `Bearer ${token}` } })
-        if (!res.ok) {
-          // invalid token, clear
-          try { localStorage.removeItem('token') } catch (e) {}
-          return
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.user) router.replace('/admin')
         }
-        const data = await res.json()
-        if (mounted) setUser(data.user || null)
-        // if the session belongs to an admin, redirect to admin dashboard
-        if (data?.user?.role === 'ADMIN') {
-          try { router.push('/admin') } catch (e) {}
-        }
-      } catch (err) {
-        try { localStorage.removeItem('token') } catch (e) {}
-      }
-    })()
-    return () => { mounted = false }
+      } catch (e) { /* ignore */ }
+    }
+    check()
   }, [])
+  const [loadingLearn, setLoadingLearn] = useState(false)
+  const learnStartRef = useRef(0)
+  const MIN_LOAD_MS = 1500
 
-  function handleSignOut() {
-    try { localStorage.removeItem('token') } catch (e) {}
-    setUser(null)
-    setMessage({ type: 'success', text: 'Signed out' })
-    // optionally reset other form state
-    setEmail('')
-    setPassword('')
-    setMode('signin')
+  function handleLearn(e) {
+    e && e.preventDefault()
+    // trigger header loader for consistent UX if available
+    if (typeof window !== 'undefined' && window.startHomeLoading) window.startHomeLoading()
+    learnStartRef.current = Date.now()
+    setLoadingLearn(true)
+    router.push('/the-problem')
   }
 
-  return (
-    <main className="page">
-      <div className="card auth-card">
-        <h1 className="title">Nerd Street CRM</h1>
-        <p className="subtitle">Secure donor management for small nonprofits</p>
+  useEffect(() => {
+    const onDone = () => {
+      const elapsed = Date.now() - (learnStartRef.current || 0)
+      const remaining = Math.max(0, MIN_LOAD_MS - elapsed)
+      if (remaining > 0) setTimeout(() => setLoadingLearn(false), remaining)
+      else setLoadingLearn(false)
+    }
+    router.events.on('routeChangeComplete', onDone)
+    router.events.on('routeChangeError', onDone)
+    return () => {
+      router.events.off('routeChangeComplete', onDone)
+      router.events.off('routeChangeError', onDone)
+    }
+  }, [router.events])
 
-        <div style={{display:'flex', gap:8, justifyContent:'center', marginBottom:12}}>
-          <button
-            className={`btn ${mode==='signin'? 'btn-primary' : 'btn-ghost'}`}
-            onClick={topSignInClick}
-          >
-            Sign In
-          </button>
-          <button
-            className={`btn ${mode==='signup'? 'btn-primary' : 'btn-ghost'}`}
-            onClick={topSignUpClick}
-          >
-            Sign Up
-          </button>
+  return (
+    <main style={{background:'#000', color:'#fff'}}>
+      <section style={{textAlign:'center', padding:'80px 16px 40px', maxWidth:1100, margin:'0 auto'}}>
+        <div style={{display:'inline-block', padding:'6px 14px', borderRadius:20, border:'1px solid rgba(var(--color-neon-rgb),0.08)', color:'var(--color-neon)', marginBottom:18}}>Donor Management Software</div>
+        <h1 style={{fontSize:48, lineHeight:1.05, margin:0, fontWeight:800}}>Donor Relationships <span style={{color:'var(--color-neon)'}}>Built for Impact</span></h1>
+        <p style={{maxWidth:860, margin:'20px auto', color:'#bdbdbd'}}>A secure, AI-powered CRM designed specifically for nonprofit teams to strengthen donor relationships and maximize fundraising impact.</p>
+
+        <div style={{marginTop:18, display:'flex', gap:12, justifyContent:'center', alignItems:'center', flexWrap:'wrap'}}>
+          <button onClick={handleLearn} className={`btn btn-primary`} style={{padding:'12px 20px', fontWeight:700, display:'inline-flex', alignItems:'center', justifyContent:'center'}}>Learn More</button>
+          <Link href="/signin" className="btn btn-ghost" title="You'll be prompted to sign in to access your dashboard" style={{textDecoration:'none', padding:'12px 20px', fontWeight:700, display:'inline-flex', alignItems:'center', justifyContent:'center'}}>View My Dashboard</Link>
         </div>
 
-        {user ? (
+      {loadingLearn && (
+        <div className="page-loader" role="status" aria-live="polite">
           <div style={{textAlign:'center'}}>
-            <p style={{marginBottom:12}}>Welcome, <strong>{user.name || user.email}</strong></p>
-            <div className="actions">
-              <button className="btn btn-ghost" onClick={handleSignOut}>Sign out</button>
-            </div>
+            <div className="spinner-lg" />
+            <div style={{marginTop:16, color:'#d0d0d0', fontSize:16}}>Loading — preparing the page…</div>
           </div>
-        ) : mode === 'signup' ? (
-          <form ref={signupFormRef} onSubmit={handleSignUp}>
-            <div className="field">
-              <label className="label">Full name</label>
-              <input className="input" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="John Doe" autoComplete="name" />
+        </div>
+      )}
+      </section>
+
+      <section style={{maxWidth:960, margin:'40px auto', padding:'0 16px 40px'}}>
+        <div style={{display:'grid', gap:18}}>
+            <div className="feature-card" style={{display:'flex', gap:16, alignItems:'center'}}>
+              <div style={{width:56, height:56, borderRadius:10, background:'rgba(var(--color-neon-rgb),0.06)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-neon)', fontSize:22}}>
+                📦
+              </div>
+              <div>
+                <h4>Centralized Data</h4>
+                <p>Manage donors, donations, and engagement in one clear system</p>
+              </div>
             </div>
 
-            <div className="field">
-              <label className="label">Email</label>
-              <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
+            <div className="feature-card" style={{display:'flex', gap:16, alignItems:'center'}}>
+              <div style={{width:56, height:56, borderRadius:10, background:'rgba(var(--color-neon-rgb),0.06)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-neon)', fontSize:22}}>
+                ⚡
+              </div>
+              <div>
+                <h4>AI-Powered Insights</h4>
+                <p>Identify donor risk, trends, and suggested next steps</p>
+              </div>
             </div>
 
-            <div className="field">
-              <label className="label">Password</label>
-              <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="new-password" />
+            <div className="feature-card" style={{display:'flex', gap:16, alignItems:'center'}}>
+              <div style={{width:56, height:56, borderRadius:10, background:'rgba(var(--color-neon-rgb),0.06)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--color-neon)', fontSize:22}}>
+                🔒
+              </div>
+              <div>
+                <h4>Built for Privacy</h4>
+                <p>Secure, responsible AI with admin oversight and control</p>
+              </div>
             </div>
+        </div>
+      </section>
 
-            {/* Role is fixed to Team Member for public signup to prevent users creating admin accounts */}
-
-            <div className="actions">
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Creating...' : 'Sign Up'}</button>
-            </div>
-          </form>
-        ) : (
-          <form ref={signinFormRef} onSubmit={handleSignIn}>
-            <div className="field">
-              <label className="label">Email</label>
-              <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
-            </div>
-
-            <div className="field">
-              <label className="label">Password</label>
-              <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="current-password" />
-            </div>
-
-            <div className="actions">
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
-            </div>
-          </form>
-        )}
-
-        {message && (
-          <p style={{marginTop:12, textAlign:'center', color: message.type === 'error' ? '#ff8080' : message.type === 'success' ? 'var(--color-neon)' : 'var(--color-gray)'}}>
-            {message.text}
-          </p>
-        )}
-
-      </div>
+      <footer style={{padding:'28px 16px', borderTop:'1px solid rgba(255,255,255,0.02)', textAlign:'center', color:'#8f8f8f'}}>
+        <div style={{maxWidth:960, margin:'0 auto'}}>
+          <p style={{margin:0, color:'#bdbdbd'}}>Join nonprofit teams making data-driven fundraising decisions with Nerd Street CRM.</p>
+          <div style={{marginTop:12, fontSize:13, color:'#8f8f8f'}}>
+            © 2026 Nerd Street CRM. Built for nonprofits.
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }

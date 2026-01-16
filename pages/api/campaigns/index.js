@@ -1,14 +1,10 @@
-import { PrismaClient } from '@prisma/client'
-
-let prisma
-if (!global.__prisma) {
-  global.__prisma = new PrismaClient()
-}
-prisma = global.__prisma
+import { getPrisma } from '../../../lib/prisma'
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   try {
+    console.debug('Campaigns: prisma model types:', { campaigns: typeof prisma.campaigns, donation: typeof prisma.donation })
     const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
     // helper to detect gift-like donations (notes may include 'gift' or similar)
     const isGift = (d) => {
@@ -29,6 +25,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ campaigns: list })
   } catch (err) {
     console.error('Campaigns API error', err)
-    return res.status(500).json({ error: 'Failed to list campaigns' })
+    const details = (err && (err.stack || err.message)) || String(err)
+    return res.status(500).json({ error: 'Failed to list campaigns', details: process.env.NODE_ENV === 'production' ? undefined : details })
   }
 }

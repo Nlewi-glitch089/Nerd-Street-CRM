@@ -55,8 +55,8 @@ export default function PartnerPage() {
   if (loading) return (
     <div style={{position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#000', zIndex:9999}}>
       <div style={{textAlign:'center'}}>
-        <div style={{width:84, height:84, borderRadius:999, border:'8px solid rgba(57,255,20,0.06)', borderTopColor:'#39ff14', boxShadow:'0 0 30px rgba(57,255,20,0.08)', margin:'0 auto', animation:'spin 1s linear infinite'}} />
-        <div style={{color:'#39ff14', marginTop:14, fontSize:16}}>Loading partner details...</div>
+          <div style={{width:84, height:84, borderRadius:999, border:'8px solid rgba(var(--color-neon-rgb),0.06)', borderTopColor:'var(--color-neon)', boxShadow:'0 0 30px rgba(var(--color-neon-rgb),0.08)', margin:'0 auto', animation:'spin 1s linear infinite'}} />
+          <div style={{color:'var(--color-neon)', marginTop:14, fontSize:16}}>Loading partner details...</div>
       </div>
       <style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -134,7 +134,7 @@ export default function PartnerPage() {
             </div>
 
             <div style={{marginTop:18}}>
-              <div style={{display:'flex',gap:10}}>
+                        <span style={{color:'#bbb',marginLeft:6}}>{partner.description}</span>
                 {['contacts','interactions','programs','reminders'].map(tab => (
                   <button
                     key={tab}
@@ -151,7 +151,7 @@ export default function PartnerPage() {
                     {tab.charAt(0).toUpperCase() + tab.slice(1)} ({(partner[tab]||[]).length})
                   </button>
                 ))}
-              </div>
+                      <div style={{fontSize:28,color:'var(--color-neon)',fontWeight:800}}>{partner.health || '—'}</div>
 
               <div style={{marginTop:12}}>
                 {selectedTab === 'contacts' && (
@@ -187,8 +187,8 @@ export default function PartnerPage() {
                         <div style={{fontWeight:700}}>{pr.title} <span style={{fontSize:12,color:'#bbb',marginLeft:8}}>{pr.status}</span></div>
                         <div style={{color:'#bbb',marginTop:6}}>{pr.value ? pr.value : ''} {pr.start ? `· ${pr.start} - ${pr.end}` : ''}</div>
                       </div>
-                    ))}
-                  </div>
+                                border: selectedTab === tab ? '1px solid var(--color-neon)' : '1px solid rgba(255,255,255,0.03)',
+                                color: selectedTab === tab ? 'var(--color-neon)' : '#bbb',
                 )}
 
                 {selectedTab === 'reminders' && (

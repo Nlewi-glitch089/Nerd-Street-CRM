@@ -44,7 +44,7 @@ export default function Profile() {
         <div style={{color:'#bbb', marginTop:14, fontSize:16}}>Loading profile...</div>
       </div>
       <style jsx>{`
-        .spinner { width:88px; height:88px; border-radius:50%; border:8px solid rgba(255,255,255,0.03); border-top-color: #39ff14; box-shadow: 0 0 28px rgba(57,255,20,0.08); animation: spin 1s linear infinite; margin:0 auto }
+        .spinner { width:88px; height:88px; border-radius:50%; border:8px solid rgba(255,255,255,0.03); border-top-color: var(--color-neon); box-shadow: 0 0 28px rgba(var(--color-neon-rgb),0.08); animation: spin 1s linear infinite; margin:0 auto }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>

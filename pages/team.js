@@ -50,6 +50,7 @@ export default function Team() {
       try {
         const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
         if (!token) {
+          try { router.replace('/signin') } catch (e) {}
           if (mounted) setError('Not authenticated')
           return
         }
@@ -147,8 +148,8 @@ export default function Team() {
   if (loading) return (
     <div style={{position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'#000', zIndex:9999}}>
       <div style={{textAlign:'center'}}>
-        <div style={{width:84, height:84, borderRadius:999, border:'8px solid rgba(57,255,20,0.06)', borderTopColor:'#39ff14', boxShadow:'0 0 30px rgba(57,255,20,0.08)', margin:'0 auto', animation:'spin 1s linear infinite'}} />
-        <div style={{color:'#39ff14', marginTop:14, fontSize:16}}>Loading dashboard...</div>
+        <div style={{width:84, height:84, borderRadius:999, border:'8px solid rgba(var(--color-neon-rgb),0.06)', borderTopColor:'var(--color-neon)', boxShadow:'0 0 30px rgba(var(--color-neon-rgb),0.08)', margin:'0 auto', animation:'spin 1s linear infinite'}} />
+        <div style={{color:'var(--color-neon)', marginTop:14, fontSize:16}}>Loading dashboard...</div>
       </div>
       <style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -226,7 +227,7 @@ export default function Team() {
               <div>
                 <div style={{textAlign:'right'}}>
                   <div style={{fontSize:12, color:'#bbb'}}>Partnership Health</div>
-                  <div style={{fontSize:22, color:'#39ff14', fontWeight:700}}>{selectedPartner.health || '—'}</div>
+                  <div style={{fontSize:22, color:'var(--color-neon)', fontWeight:700}}>{selectedPartner.health || '—'}</div>
                 </div>
                 <button className="btn btn-ghost" onClick={() => setSelectedPartner(null)} style={{marginTop:8}}>Close</button>
               </div>
@@ -241,7 +242,7 @@ export default function Team() {
                 </div>
                 {(selectedPartner.interactions || []).length > 0 && (
                   <div style={{marginTop:12}}>
-                    <div style={{fontWeight:700, color:'#39ff14'}}>Recent Interactions</div>
+                    <div style={{fontWeight:700, color:'var(--color-neon)'}}>Recent Interactions</div>
                     {(selectedPartner.interactions || []).slice().sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,2).map(it => (
                       <div key={it.id || it.date} style={{marginTop:8}}>
                         <div style={{fontWeight:700}}>{it.type || it.kind || it.title} <span style={{fontSize:12,color:'#bbb',marginLeft:8}}>{it.date}</span></div>

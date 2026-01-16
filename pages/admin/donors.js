@@ -18,6 +18,7 @@ export default function AdminDonors() {
   const [donationForm, setDonationForm] = useState({ amount:'', campaignId:'', method:'CASH', methodDetail:'', notes:'' })
   const [previewDonor, setPreviewDonor] = useState(null) // { donor, totalGiving, giftedTotal, gifts, lastGiftAt }
   const [fullDonor, setFullDonor] = useState(null) // full donor with donations for client-side view
+  const [flashMessage, setFlashMessage] = useState(null)
 
   // Client-side sample generators (used as fallback when server returns no data)
   function generateSampleCampaigns() {
@@ -138,6 +139,17 @@ export default function AdminDonors() {
         const data = await res.json()
         if (!data?.user) { setError('Unable to load user'); setLoading(false); return }
         setUser(data.user)
+          // show success toast if navigated here after creating a donor
+          try {
+            const added = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('added')) || null
+            const addedName = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('name')) || null
+            if (added) {
+              setFlashMessage(addedName ? `Created donor: ${addedName}` : 'Donor created')
+              // remove the query from the URL without reloading
+              try { const u = new URL(window.location.href); u.searchParams.delete('added'); u.searchParams.delete('name'); window.history.replaceState({}, '', u.toString()) } catch(e){}
+              setTimeout(()=>setFlashMessage(null), 5000)
+            }
+          } catch(e){}
         await loadDonors()
         await loadCampaigns()
       }catch(err){ console.warn(err); setError('Network error') } finally { if (mounted) setLoading(false) }
@@ -267,6 +279,9 @@ export default function AdminDonors() {
 
   return (
     <div style={{padding:20}}>
+      {flashMessage && (
+        <div style={{marginBottom:12, padding:12, borderRadius:6, background:'rgba(57,255,20,0.06)', color:'var(--color-neon)', fontWeight:700}}>{flashMessage}</div>
+      )}
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
         <h2 style={{color:'var(--color-neon)'}}>Donors</h2>
         <div>
