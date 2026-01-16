@@ -264,3 +264,32 @@ npm run dev
 ### Notes
 - Public pages are available without authentication. To access the CRM, click "Access Dashboard" and sign in.
 - The AI API (`/api/ai`) is a scaffolded endpoint returning mock insights. Replace with real model calls and proper sanitization in production.
+ 
+### AI Decision Summary (Admin)
+
+- The admin dashboard includes an "AI Decision Summary" feature that aggregates recent donors, donations, campaigns, and users and produces a decision-support summary.
+- The AI panel is a floating, draggable, minimizable dialog that displays the model's `summary`, `trends`, `insights`, `concerns`, and `actions` when available.
+- You can export the AI result as JSON using the "Download JSON" button in the panel header. The download filename is `decision-summary-YYYYMMDD-HHMMSS.json`.
+- If your deployment sets the `OPENAI_API_KEY` environment variable, the server will call the external model for richer suggestions. When the key is not present, a local summarizer fallback is used.
+
+### Troubleshooting AI output
+
+- The server attempts to parse strict JSON from the model. If the model reply is not valid JSON, the API retries once and then falls back to a deterministic local summarizer. When parsing fails the API will return `rawModelReplies` in the response for debugging.
+- If you see "No suggested actions found", verify `OPENAI_API_KEY` is set in your environment and check server logs or the API response to inspect `rawModelReplies`.
+
+### Deployment
+
+- This project can be deployed to Vercel. If your Git repo is connected to Vercel, pushing to the main branch will trigger an automatic deploy.
+- To deploy manually from this machine using the Vercel CLI:
+
+```bash
+# install the Vercel CLI if you don't have it
+npx vercel login
+npx vercel --prod --confirm
+```
+
+- Remember to set production environment variables in the Vercel dashboard (not in source control):
+	- `DATABASE_URL` — your PostgreSQL connection string
+	- `OPENAI_API_KEY` — your OpenAI API key (optional; set to enable external AI)
+
+If you want, I can push this README update and trigger a Vercel redeploy for you now.
