@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 
 export default function Admin() {
@@ -24,6 +24,16 @@ export default function Admin() {
   const [signOutMessage, setSignOutMessage] = useState(null)
   const [selectedDonor, setSelectedDonor] = useState(null)
   const [campaignsList, setCampaignsList] = useState([])
+  // AI decision summary UI state
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState(null)
+  const [aiMinimized, setAiMinimized] = useState(false)
+  const [aiPos, setAiPos] = useState({ left: null, top: null })
+  const aiDragRef = useRef({ dragging: false, startX: 0, startY: 0, origLeft: 0, origTop: 0 })
+  // AI chat follow-ups
+  const [aiChatMessages, setAiChatMessages] = useState([])
+  const [aiQuestion, setAiQuestion] = useState('')
+  const [aiQuestionLoading, setAiQuestionLoading] = useState(false)
 
   // clear-confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -95,6 +105,51 @@ export default function Admin() {
     })()
     return () => { mounted = false }
   }, [])
+
+  // attach global listeners for dragging the AI panel (always registered)
+  useEffect(() => {
+    function onMove(e) {
+      if (!aiDragRef.current.dragging) return
+      const dx = e.clientX - aiDragRef.current.startX
+      const dy = e.clientY - aiDragRef.current.startY
+      const left = Math.max(8, aiDragRef.current.origLeft + dx)
+      const top = Math.max(8, aiDragRef.current.origTop + dy)
+      setAiPos({ left, top })
+    }
+    function onUp() {
+      aiDragRef.current.dragging = false
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [])
+
+  // prepare AI display content (format JSON-like summaries into readable paragraphs)
+  const aiDisplay = (() => {
+    if (!aiResult) return null
+    const out = { parsed: null, paras: [] }
+    const s = aiResult.summary
+    if (s && typeof s === 'string') {
+      const trimmed = s.trim()
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          out.parsed = parsed
+          return out
+        } catch (e) {
+          // not JSON
+        }
+      }
+      // split into paragraphs by double-newline or sentences
+      const paras = trimmed.split(/\n\s*\n|\.(?:\s+|$)/).map(p=>p.trim()).filter(Boolean)
+      out.paras = paras
+      return out
+    }
+    return out
+  })()
 
           // sample seeder
           async function seedSampleData() {
@@ -339,6 +394,50 @@ export default function Admin() {
             }catch(e){ console.warn(e) }
           }
 
+          // AI decision summary fetcher (admin-only)
+          async function fetchDecisionSummary() {
+            try {
+              setAiLoading(true)
+              setAiResult(null)
+              const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+              const res = await fetch('/api/admin/decision-summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{} ) },
+                body: JSON.stringify({})
+              })
+              const data = await res.json().catch(()=>null)
+              if (!res.ok) throw new Error(data?.error || JSON.stringify(data) || 'Request failed')
+              setAiResult(data.result || data)
+            } catch (err) {
+              setAiResult({ error: String(err) })
+            } finally {
+              setAiLoading(false)
+            }
+          }
+
+          // Download current AI result as a JSON file
+          function downloadAiResult() {
+            try {
+              if (!aiResult) return
+              const now = new Date()
+              const pad = (n) => String(n).padStart(2, '0')
+              const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+              const filename = `decision-summary-${ts}.json`
+              const blob = new Blob([JSON.stringify(aiResult, null, 2)], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = filename
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+            } catch (e) {
+              console.warn('Download failed', e)
+              alert('Download failed: ' + String(e))
+            }
+          }
+
           // color helpers
           const tagColor = (tag) => {
             if (!tag) return '#999'
@@ -479,7 +578,7 @@ export default function Admin() {
             return null // already handled above
           }
 
-          return (
+                  return (
             <div style={{padding:20}}>
               <header style={{display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'2px solid rgba(57,255,20,0.06)', paddingBottom:12}}>
                 <div>
@@ -518,6 +617,7 @@ export default function Admin() {
                   <button className={`btn ${tab==='approvals'?'btn-primary':''}`} onClick={()=>setTab('approvals')}>Campaign Approvals</button>
                   <button className={`btn ${tab==='analytics'?'btn-primary':''}`} onClick={()=>setTab('analytics')}>Full Analytics</button>
                   <div style={{marginLeft:'auto', display:'flex', gap:8}}>
+                    <button className="btn" onClick={fetchDecisionSummary} disabled={aiLoading}>{aiLoading ? 'Generating…' : 'Generate Decision Summary'}</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/donors' }}>View Donors</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/campaigns' }}>View Campaigns</button>
                     <button className="btn btn-danger" onClick={() => { setConfirmOpen(true) }} style={{background:'#ff4d4d', color:'#fff', border:'1px solid rgba(255,77,77,0.9)'}}>Clear All Data</button>
@@ -598,7 +698,7 @@ export default function Admin() {
 
                   {/* Quick campaigns summary on the dashboard area (shows per-campaign breakdown and actions) */}
                   {tab !== 'approvals' && tab !== 'users' && analyticsData && Array.isArray(analyticsData.campaignStats) && analyticsData.campaignStats.length > 0 && (
-                    <div style={{marginTop:18}}>
+                    <div style={{marginTop:18, marginBottom:28}}>
                       <div style={{color:'var(--color-neon)', fontWeight:700, marginBottom:8}}>Campaigns Quick</div>
                       <div style={{display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12}}>
                         {analyticsData.campaignStats.map(c => {
@@ -745,6 +845,161 @@ export default function Admin() {
               </div>
 
               {/* donors / campaigns quick summaries removed; use the dedicated pages for full lists */}
+
+              {/* AI Decision Summary floating panel (draggable + minimizable) */}
+              {aiResult && (
+                <div
+                  role="dialog"
+                  aria-label="AI Decision Summary"
+                  style={{
+                    position: 'fixed',
+                    zIndex: 9999,
+                    width: aiMinimized ? 200 : 640,
+                    height: aiMinimized ? 48 : 'auto',
+                    left: aiPos.left != null ? aiPos.left : undefined,
+                    top: aiPos.top != null ? aiPos.top : undefined,
+                    right: aiPos.left == null ? 20 : undefined,
+                    bottom: aiPos.top == null ? 20 : undefined,
+                    background: 'var(--color-off-black)',
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    padding: aiMinimized ? '6px 8px' : 16,
+                    borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.6)'
+                  }}
+                >
+                  <div
+                    onMouseDown={(e)=>{
+                      // start drag
+                      aiDragRef.current.dragging = true
+                      aiDragRef.current.startX = e.clientX
+                      aiDragRef.current.startY = e.clientY
+                      const rect = e.currentTarget.parentElement.getBoundingClientRect()
+                      aiDragRef.current.origLeft = rect.left
+                      aiDragRef.current.origTop = rect.top
+                      // prevent text selection
+                      e.preventDefault()
+                    }}
+                    style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'grab', overflow:'hidden'}}
+                  >
+                    <div style={{fontWeight:700, color:'var(--color-neon)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: aiMinimized ? 140 : 'unset'}}>
+                      AI Decision Summary
+                    </div>
+                    <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                      <button
+                        className="btn"
+                        onClick={(e)=>{ e.stopPropagation(); downloadAiResult() }}
+                        disabled={aiLoading || !aiResult}
+                        style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }
+                      >{ aiMinimized ? 'JSON' : 'Download JSON' }</button>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={(e)=>{ e.stopPropagation(); setAiMinimized(m => !m) }}
+                        style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }
+                      >{aiMinimized ? 'Restore' : 'Minimize'}</button>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={(e)=>{ e.stopPropagation(); setAiResult(null) }}
+                        style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }
+                      >Close</button>
+                    </div>
+                  </div>
+
+                  {!aiMinimized && (
+                    <div style={{marginTop:8, maxHeight:'70vh', overflow:'auto', minWidth:420}}>
+                      {aiResult.error ? (
+                        <div style={{color:'#ff8080'}}>{aiResult.error}</div>
+                      ) : (
+                        <div style={{color:'#ddd', lineHeight:1.6}}>
+                          {/* render parsed JSON-like summary if present */}
+                          {aiDisplay?.parsed ? (
+                            <div>
+                              {Object.keys(aiDisplay.parsed).map((k) => (
+                                <div key={k} style={{marginBottom:8}}>
+                                  <div style={{fontWeight:700, color:'#bbb', marginBottom:6}}>{k}</div>
+                                  <pre style={{whiteSpace:'pre-wrap', color:'#ccc', background:'transparent', padding:0, margin:0}}>{JSON.stringify(aiDisplay.parsed[k], null, 2)}</pre>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div>
+                              {(aiDisplay?.paras || []).map((p,idx) => (
+                                <p key={idx} style={{marginTop: idx===0 ? 0 : 12}}>{p}</p>
+                              ))}
+                            </div>
+                          )}
+
+                          {aiResult.insights && aiResult.insights.length > 0 && (
+                            <div style={{marginTop:12}}>
+                              <strong style={{color:'#bbb'}}>Insights</strong>
+                              <ul style={{marginTop:8}}>{aiResult.insights.map((i,idx)=>(<li key={idx} style={{color:'#ccc'}}>{i}</li>))}</ul>
+                            </div>
+                          )}
+                          {aiResult.concerns && aiResult.concerns.length > 0 && (
+                            <div style={{marginTop:12}}>
+                              <strong style={{color:'#bbb'}}>Concerns</strong>
+                              <ul style={{marginTop:8}}>{aiResult.concerns.map((c,idx)=>(<li key={idx} style={{color:'#fcc'}}>{c}</li>))}</ul>
+                            </div>
+                          )}
+                          {aiResult.actions && aiResult.actions.length > 0 && (
+                            <div style={{marginTop:12}}>
+                              <strong style={{color:'#bbb'}}>Suggested actions</strong>
+                              <ul style={{marginTop:8}}>{aiResult.actions.map((a,idx)=>(<li key={idx} style={{color:'#ccc'}}>{a}</li>))}</ul>
+                            </div>
+                          )}
+                          {(!aiResult.actions || aiResult.actions.length === 0) && !aiResult.error && (
+                            <div style={{marginTop:12, color:'#999'}}>
+                              No suggested actions found. To receive actionable recommendations, ensure the server has an AI key set (OPENAI_API_KEY) or try re-running the summary with additional context.
+                            </div>
+                          )}
+                          {/* Chat follow-up UI */}
+                          <div style={{marginTop:14, borderTop:'1px solid rgba(255,255,255,0.02)', paddingTop:12}}>
+                            <div style={{fontSize:13, color:'#bbb', marginBottom:8}}>Ask follow-up questions</div>
+                            <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                              <div style={{maxHeight:180, overflow:'auto', padding:8, background:'#070707', borderRadius:6}}>
+                                {aiChatMessages.length === 0 ? (
+                                  <div style={{color:'#777'}}>Ask a question about this summary and the assistant will respond.</div>
+                                ) : (
+                                  aiChatMessages.map((m, idx) => (
+                                    <div key={idx} style={{marginBottom:8}}>
+                                      <div style={{fontSize:12, color:'#999'}}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
+                                      <div style={{color: m.role === 'user' ? '#ddd' : '#cfe'}}>{m.text}</div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                              <div style={{display:'flex', gap:8}}>
+                                <input className="input" value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="Ask a follow-up question..." />
+                                <button className="btn" onClick={async ()=>{
+                                  const q = (aiQuestion||'').trim()
+                                  if (!q) return
+                                  // append user message
+                                  setAiChatMessages(m => [...m, { role: 'user', text: q }])
+                                  setAiQuestion('')
+                                  setAiQuestionLoading(true)
+                                  try {
+                                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                    const res = await fetch('/api/admin/ai-question', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ question: q, context: aiResult }) })
+                                    const data = await res.json().catch(()=>null)
+                                    if (!res.ok) {
+                                      setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error: ' + (data?.error || 'Request failed') }])
+                                    } else {
+                                      setAiChatMessages(m => [...m, { role: 'assistant', text: data.answer || '[No answer]' }])
+                                    }
+                                  } catch (err) {
+                                    setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error: ' + String(err) }])
+                                  } finally {
+                                    setAiQuestionLoading(false)
+                                  }
+                                }} disabled={aiQuestionLoading || !aiResult}>{aiQuestionLoading ? 'Thinking…' : 'Send'}</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {confirmOpen && (
                 <div className="dialog-backdrop">

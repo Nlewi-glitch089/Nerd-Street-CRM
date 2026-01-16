@@ -8,6 +8,7 @@ function Header() {
   const hideOnDash = router?.pathname && (router.pathname.startsWith('/admin') || router.pathname.startsWith('/team'))
   const hideOnAuth = router?.pathname === '/signin' || router?.pathname === '/login'
   const [homeLoading, setHomeLoading] = useState(false)
+  const [user, setUser] = useState(null)
   const homeStartRef = useRef(0)
   const MIN_LOAD_MS = 1500
 
@@ -43,6 +44,24 @@ function Header() {
       setHomeLoading(true)
     }
     return () => { delete window.startHomeLoading }
+  }, [])
+
+  // fetch current user (if token present) to decide whether to show admin controls
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+        if (!token) return
+        const res = await fetch('/api/protected', { headers: { Authorization: `Bearer ${token}` } })
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted) setUser(data?.user || null)
+      } catch (err) {
+        // ignore
+      }
+    })()
+    return () => { mounted = false }
   }, [])
 
   // make sure we clean up the class if this component unmounts
@@ -82,6 +101,15 @@ function Header() {
           </button>
         </nav>
       ) : <div />}
+
+      {/* right-side controls: show admin settings icon when user is ADMIN */}
+      <div style={{display:'flex', alignItems:'center', gap:8}}>
+        {user?.role === 'ADMIN' && router.pathname && router.pathname.startsWith('/admin') && (
+          <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{e.preventDefault(); router.push('/admin/settings')}} style={{marginLeft:8}}>
+            ⚙️
+          </button>
+        )}
+      </div>
 
       {homeLoading && (
         <div className="page-loader" role="status" aria-live="polite">
