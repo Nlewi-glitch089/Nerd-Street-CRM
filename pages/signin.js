@@ -163,6 +163,9 @@ export default function SignIn() {
 
   return (
     <main className="page">
+      <div style={{textAlign:'center', marginTop:20}}>
+        <a href="/" onClick={(e)=>{e.preventDefault(); try{window.location.href='/'}catch(err){}}} style={{color:'var(--color-neon)', fontWeight:700, textDecoration:'none'}}>← Back to the website</a>
+      </div>
       <div className="card auth-card">
         <h1 className="title">Nerd Street CRM</h1>
         <p className="subtitle">Secure donor management for small nonprofits</p>

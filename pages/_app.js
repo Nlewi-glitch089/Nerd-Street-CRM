@@ -6,6 +6,7 @@ function Header() {
   const router = useRouter()
   const isHome = router?.pathname === '/'
   const hideOnDash = router?.pathname && (router.pathname.startsWith('/admin') || router.pathname.startsWith('/team'))
+  const hideOnAuth = router?.pathname === '/signin' || router?.pathname === '/login'
   const [homeLoading, setHomeLoading] = useState(false)
   const homeStartRef = useRef(0)
   const MIN_LOAD_MS = 1500
@@ -48,6 +49,8 @@ function Header() {
   useEffect(() => {
     return () => { try { document.documentElement.classList.remove('nsc-loading') } catch (e) {} }
   }, [])
+
+  if (hideOnAuth) return null
 
   return (
     <header style={{borderBottom:'1px solid rgba(255,255,255,0.04)', padding:'12px 18px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
