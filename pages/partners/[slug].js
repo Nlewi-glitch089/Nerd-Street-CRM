@@ -185,11 +185,9 @@ export default function PartnerPage() {
                     {(partner.programs||[]).map(pr => (
                       <div key={pr.id || pr.title} style={{marginTop:10}}>
                         <div style={{fontWeight:700}}>{pr.title} <span style={{fontSize:12,color:'#bbb',marginLeft:8}}>{pr.status}</span></div>
-                        <div style={{color:'#bbb',marginTop:6}}>{pr.value ? pr.value : ''} {pr.start ? `· ${pr.start} - ${pr.end}` : ''}</div>
-                      </div>
-                                border: selectedTab === tab ? '1px solid var(--color-neon)' : '1px solid rgba(255,255,255,0.03)',
-                                color: selectedTab === tab ? 'var(--color-neon)' : '#bbb',
-                )}
+                          <div style={{color:'#bbb',marginTop:6}}>{pr.value ? pr.value : ''} {pr.start ? `· ${pr.start} - ${pr.end}` : ''}</div>
+                        </div>
+                      ))}
 
                 {selectedTab === 'reminders' && (
                   <div style={{marginTop:12,padding:12,border:'1px solid rgba(57,255,20,0.06)',borderRadius:6}}>
