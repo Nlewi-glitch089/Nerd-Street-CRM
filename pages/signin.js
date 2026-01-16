@@ -161,84 +161,74 @@ export default function SignIn() {
     setMode('signin')
   }
 
+  const messageColor = message?.type === 'error' ? '#ff8080' : message?.type === 'success' ? 'var(--color-neon)' : 'var(--color-gray)'
+
   return (
     <main className="page">
-      <div style={{textAlign:'center', marginTop:20}}>
-        <a href="/" onClick={(e)=>{e.preventDefault(); try{window.location.href='/'}catch(err){}}} style={{color:'var(--color-neon)', fontWeight:700, textDecoration:'none'}}>← Back to the website</a>
-      </div>
-      <div className="card auth-card">
-        <h1 className="title">Nerd Street CRM</h1>
-        <p className="subtitle">Secure donor management for small nonprofits</p>
+      <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:12, width:'100%'}}>
+        <a href="/" onClick={(e)=>{e.preventDefault(); router.push('/')}} style={{color:'var(--color-neon)', fontWeight:700, textDecoration:'none'}}>Back to the website</a>
 
-        <div style={{display:'flex', gap:8, justifyContent:'center', marginBottom:12}}>
-          <button
-            className={`btn ${mode==='signin'? 'btn-primary' : 'btn-ghost'}`}
-            onClick={topSignInClick}
-          >
-            Sign In
-          </button>
-          <button
-            className={`btn ${mode==='signup'? 'btn-primary' : 'btn-ghost'}`}
-            onClick={topSignUpClick}
-          >
-            Sign Up
-          </button>
-        </div>
+        <div className="card auth-card">
+          <h1 className="title">Nerd Street CRM</h1>
+          <p className="subtitle">Secure donor management for small nonprofits</p>
 
-        {user ? (
-          <div style={{textAlign:'center'}}>
-            <p style={{marginBottom:12}}>Welcome, <strong>{user.name || user.email}</strong></p>
-            <div style={{fontSize:13, color:'#bbb', marginBottom:10}}>You are currently signed in. To use a different account, click "Use different account" below. Signing in will replace the current session.</div>
-            <div className="actions">
-              <button className="btn btn-ghost" onClick={handleSignOut}>Sign out</button>
-              <button className="btn" onClick={()=>{ setUser(null); setMode('signin'); setMessage(null) }} style={{marginLeft:8}}>Use different account</button>
-            </div>
+          <div style={{display:'flex', gap:8, justifyContent:'center', marginBottom:12}}>
+            <button className={`btn ${mode==='signin'? 'btn-primary' : 'btn-ghost'}`} onClick={topSignInClick}>Sign In</button>
+            <button className={`btn ${mode==='signup'? 'btn-primary' : 'btn-ghost'}`} onClick={topSignUpClick}>Sign Up</button>
           </div>
-        ) : mode === 'signup' ? (
-          <form ref={signupFormRef} onSubmit={handleSignUp}>
-            <div className="field">
-              <label className="label">Full name</label>
-              <input className="input" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="John Doe" autoComplete="name" />
-            </div>
 
-            <div className="field">
-              <label className="label">Email</label>
-              <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
+          {user ? (
+            <div style={{textAlign:'center'}}>
+              <p style={{marginBottom:12}}>Welcome, <strong>{user.name || user.email}</strong></p>
+              <div style={{fontSize:13, color:'#bbb', marginBottom:10}}>You are currently signed in. To use a different account, click "Use different account" below. Signing in will replace the current session.</div>
+              <div className="actions">
+                <button className="btn btn-ghost" onClick={handleSignOut}>Sign out</button>
+                <button className="btn" onClick={()=>{ setUser(null); setMode('signin'); setMessage(null) }} style={{marginLeft:8}}>Use different account</button>
+              </div>
             </div>
+          ) : mode === 'signup' ? (
+            <form ref={signupFormRef} onSubmit={handleSignUp}>
+              <div className="field">
+                <label className="label">Full name</label>
+                <input className="input" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="John Doe" autoComplete="name" />
+              </div>
 
-            <div className="field">
-              <label className="label">Password</label>
-              <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="new-password" />
-            </div>
+              <div className="field">
+                <label className="label">Email</label>
+                <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
+              </div>
 
-            <div className="actions">
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Creating...' : 'Sign Up'}</button>
-            </div>
-          </form>
-        ) : (
-          <form ref={signinFormRef} onSubmit={handleSignIn}>
-            <div className="field">
-              <label className="label">Email</label>
-              <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
-            </div>
+              <div className="field">
+                <label className="label">Password</label>
+                <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="new-password" />
+              </div>
 
-            <div className="field">
-              <label className="label">Password</label>
-              <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="current-password" />
-            </div>
+              <div className="actions">
+                <button className="btn btn-primary" type="submit" disabled={loading}>{loading? 'Creating...' : 'Sign Up'}</button>
+              </div>
+            </form>
+          ) : (
+            <form ref={signinFormRef} onSubmit={handleSignIn}>
+              <div className="field">
+                <label className="label">Email</label>
+                <input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@nerdstgamers.com" autoComplete="email" />
+              </div>
 
-            <div className="actions">
-              <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
-            </div>
-          </form>
-        )}
+              <div className="field">
+                <label className="label">Password</label>
+                <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="current-password" />
+              </div>
 
-        {message && (
-          <p style={{marginTop:12, textAlign:'center', color: message.type === 'error' ? '#ff8080' : message.type === 'success' ? 'var(--color-neon)' : 'var(--color-gray)'}}>
-            {message.text}
-          </p>
-        )}
+              <div className="actions">
+                <button className="btn btn-primary" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
+              </div>
+            </form>
+          )}
 
+          {message && (
+            <p style={{marginTop:12, textAlign:'center', color: messageColor}}>{message.text}</p>
+          )}
+        </div>
       </div>
     </main>
   )
