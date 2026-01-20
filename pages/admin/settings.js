@@ -19,8 +19,23 @@ export default function AdminSettings() {
   const [devError, setDevError] = useState(null)
   const [devTab, setDevTab] = useState('rubric') // 'rubric' | 'reflections'
   const [saveMessage, setSaveMessage] = useState('')
+  const [actionLogs, setActionLogs] = useState([])
+  const [logsLoading, setLogsLoading] = useState(false)
   const saveTimerRef = useRef(null)
   const firstSaveRef = useRef(true)
+
+  // format timestamps into readable string + relative time
+  function formatWhen(iso) {
+    try {
+      const d = new Date(iso)
+      const now = Date.now()
+      const diff = Math.round((now - d.getTime()) / 1000) // seconds
+      if (diff < 60) return `${d.toLocaleString()} (${diff}s ago)`
+      if (diff < 3600) return `${d.toLocaleString()} (${Math.round(diff/60)}m ago)`
+      if (diff < 86400) return `${d.toLocaleString()} (${Math.round(diff/3600)}h ago)`
+      return `${d.toLocaleString()} (${Math.round(diff/86400)}d ago)`
+    } catch (e) { return String(iso) }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -140,6 +155,60 @@ export default function AdminSettings() {
       </section>
 
       <section style={{marginTop:20}}>
+        <h3>Audit Log</h3>
+        <p style={{color:'#999', marginTop:0}}>View recent admin actions and changes. This is moved from the dashboard to settings for clarity.</p>
+        <div className="card" style={{marginTop:8}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div style={{fontWeight:700}}>Recent Admin Changes</div>
+            <div style={{display:'flex', gap:8}}>
+              <button className="btn" onClick={async ()=>{
+                setLogsLoading(true)
+                try {
+                  const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                  const res = await fetch('/api/admin/action-log', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                  if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed to load') }
+                  const data = await res.json().catch(()=>({}))
+                  setActionLogs(data.logs || [])
+                } catch (e) {
+                  console.warn('Load logs failed', e)
+                } finally { setLogsLoading(false) }
+              }} disabled={logsLoading}>{logsLoading ? 'Loading…' : 'Refresh'}</button>
+            </div>
+          </div>
+          <div style={{marginTop:8, maxHeight:260, overflow:'auto'}}>
+            {actionLogs.length === 0 ? (
+              <div style={{color:'#888'}}>No recent changes. Click Refresh to load.</div>
+            ) : (
+              actionLogs.map(l => {
+                const when = formatWhen(l.createdAt)
+                const actor = l.user ? (l.user.name || l.user.email || l.user.id) : 'system'
+                const verbMap = { create: 'created', update: 'updated', delete: 'deleted', approve: 'approved', deactivate: 'deactivated', deny: 'denied' }
+                const verb = verbMap[l.action] || l.action
+                // prefer an enriched `targetName` from the API, then meta.name/title, then id
+                const friendlyMetaName = (l.meta && (l.meta.name || l.meta.title))
+                const friendlyTarget = l.targetName || friendlyMetaName || (l.meta && l.meta.deletedAt ? `${l.targetId} (deleted ${new Date(l.meta.deletedAt).toLocaleString()})` : l.targetId)
+                const headline = `${actor} ${verb} ${String(l.targetType).toLowerCase()} ${friendlyTarget}`
+                return (
+                  <details key={l.id} style={{padding:8, borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
+                    <summary style={{fontSize:13, color:'#ddd', cursor:'pointer'}}>{headline}</summary>
+                    <div style={{marginTop:8, color:'#bbb', display:'flex', justifyContent:'space-between', gap:8}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13}}><strong>Action:</strong> {l.action}</div>
+                        <div style={{fontSize:13}}><strong>Target:</strong> {l.targetType} — {l.targetId}</div>
+                        {l.meta && <div style={{marginTop:6}}><strong>Meta:</strong> <pre style={{whiteSpace:'pre-wrap', margin:0, color:'#ccc'}}>{JSON.stringify(l.meta, null, 2)}</pre></div>}
+                      </div>
+                      <div style={{minWidth:140, textAlign:'right'}}>
+                        <div style={{fontSize:12, color:'#bbb'}}><strong>By:</strong> {actor}</div>
+                        <div style={{fontSize:12, color:'#777', marginTop:6}}>{when}</div>
+                      </div>
+                    </div>
+                  </details>
+                )
+              })
+            )}
+          </div>
+        </div>
+
         <h3>Developer Information</h3>
         <p style={{color:'#999', marginTop:0}}>Hidden by default — re-enter your admin password to unlock read-only developer notes.</p>
 
@@ -165,6 +234,7 @@ export default function AdminSettings() {
               <div style={{display:'flex', gap:8}}>
                 <button className={`btn ${devTab==='rubric' ? 'btn-primary' : 'btn-ghost'}`} onClick={()=>setDevTab('rubric')}>System Evaluation Rubric</button>
                 <button className={`btn ${devTab==='reflections' ? 'btn-primary' : 'btn-ghost'}`} onClick={()=>setDevTab('reflections')}>Developer Reflections</button>
+                <button className={`btn ${devTab==='aiPolicy' ? 'btn-primary' : 'btn-ghost'}`} onClick={()=>setDevTab('aiPolicy')}>AI Policy</button>
               </div>
 
               <div style={{marginTop:12}}>
@@ -244,7 +314,7 @@ export default function AdminSettings() {
                       <li><a href="https://www.figma.com/design/MyRhbMZ4A0ZB4iCukNSKif/CRM?node-id=0-1&p=f&t=zc4BwznDhUL3WAzq-0" target="_blank" rel="noreferrer" style={{color:'var(--color-neon)'}}>Wireframes / Figma</a></li>
                     </ul>
                   </div>
-                ) : (
+                ) : devTab === 'reflections' ? (
                   <div style={{color:'#ddd', lineHeight:1.6}}>
                     <h4 style={{marginTop:0}}>Developer Reflections</h4>
                     <h5>What challenged me the most</h5>
@@ -268,7 +338,39 @@ export default function AdminSettings() {
                     <p>AI was most effective when used for summarizing donor activity and trends, supporting planning and review workflows, and reducing manual analysis effort.</p>
                     <p>AI was intentionally not used for automated decision-making, data mutation or irreversible actions, or replacing human judgment. This reinforced the importance of treating AI as an assistive layer rather than a control mechanism.</p>
                   </div>
-                )}
+                ) : devTab === 'aiPolicy' ? (
+                  <div style={{color:'#ddd', lineHeight:1.5}}>
+                    <h4 style={{marginTop:0}}>AI Policy & Safeguards</h4>
+
+                    <div style={{marginTop:8}}>
+                      <h5 style={{marginBottom:6}}>Model and API</h5>
+                      <p style={{marginTop:0, color:'#d0d0d0'}}>This project uses an external language model via a server-side API route. In production, we recommend using a provably responsible provider (such as OpenAI or similar) with scoped API keys and audit logging enabled. All API calls are logged for transparency and continuous improvement.</p>
+
+                      <h5 style={{marginTop:12, marginBottom:6}}>Prompt Design</h5>
+                      <p style={{marginTop:0, color:'#d0d0d0'}}>Prompts are designed to avoid sending raw PII. The AI receives aggregated or anonymized donor activity (counts, recency, and engagement signals) and is explicitly asked to return prioritized, actionable suggestions rather than exact donor text or sensitive data.</p>
+
+                      <div style={{marginTop:10, background:'rgba(0,0,0,0.12)', padding:10, borderRadius:6, border:'1px solid rgba(var(--color-neon-rgb),0.04)'}}>
+                        <code style={{color:'#bfbfbf'}}>Example: "Count: 5 dormant donors, Avg days since gift: 487" → Actionable suggestions</code>
+                      </div>
+
+                      <h5 style={{marginTop:12, marginBottom:6}}>How AI Improves Decision-Making</h5>
+                      <p style={{marginTop:0, color:'#d0d0d0'}}>AI helps identify donor risk, highlight trends, and propose next steps—enabling small teams to make data-driven decisions faster without requiring deep analytics expertise.</p>
+                      <div style={{marginTop:10, display:'grid', gap:8}}>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Risk Identification</strong> — flags dormant donors (6+ months)</div>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Trend Analysis</strong> — identifies seasonal patterns</div>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Action Planning</strong> — suggests outreach cadence</div>
+                      </div>
+
+                      <h5 style={{marginTop:12, marginBottom:6}}>Responsible AI Usage</h5>
+                      <ul style={{marginTop:8, color:'#d0d0d0'}}>
+                        <li>AI outputs are advisory — human review is required before any donor outreach.</li>
+                        <li>Do not send full PII to the model — donor data is anonymized or aggregated before processing.</li>
+                        <li>Log all model inputs and outputs for an audit trail and continuous improvement.</li>
+                        <li>Admin override is always available — admins can reject, modify, or approve any suggestion before action.</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
