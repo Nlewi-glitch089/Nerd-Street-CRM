@@ -1,5 +1,6 @@
 import { getUserFromToken } from '../../../lib/auth'
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 let prisma
 if (!global.__prisma) global.__prisma = new PrismaClient()
@@ -20,7 +21,8 @@ export default async function handler(req, res) {
 
   const { password, names } = req.body || {}
   if (!password) return res.status(400).json({ error: 'Password required' })
-  if (password !== actor.password) return res.status(403).json({ error: 'Password incorrect' })
+  const ok = await bcrypt.compare(String(password), actor.password)
+  if (!ok) return res.status(403).json({ error: 'Password incorrect' })
   if (!Array.isArray(names) || names.length === 0) return res.status(400).json({ error: 'names array required' })
 
   const results = []

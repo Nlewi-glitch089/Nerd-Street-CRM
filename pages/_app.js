@@ -76,34 +76,34 @@ function Header() {
       <div>
         <a href="/" onClick={(e)=>{e.preventDefault(); setHomeLoading(true); router.push('/')}} style={{color:'var(--color-neon)', fontWeight:800, textDecoration:'none'}}>NERD STREET CRM</a>
       </div>
-      {!isHome && !hideOnDash ? (
-        <nav style={{display:'flex', gap:12, alignItems:'center'}}>
-          <a href="/the-problem" style={{color:'#ddd', textDecoration:'none'}}>The Problem</a>
-          <a href="/why" style={{color:'#ddd', textDecoration:'none'}}>Why This CRM</a>
-          <a href="/ai-policy" style={{color:'#ddd', textDecoration:'none'}}>AI Policy</a>
-          <button
-            className="btn"
-            onClick={(e)=>{
-              e.preventDefault();
-              // trigger the same synchronous DOM overlay + React loader
-              if (typeof window !== 'undefined' && window.startHomeLoading) {
-                window.startHomeLoading()
-              } else {
-                try { document.documentElement.classList.add('nsc-loading') } catch (err) {}
-                homeStartRef.current = Date.now();
-                setHomeLoading(true)
-              }
-              router.push('/')
-            }}
-            style={{marginLeft:8}}
-          >
-            {homeLoading ? <span className="spinner" /> : 'Back'}
-          </button>
-        </nav>
-      ) : <div />}
+      {!isHome && !hideOnDash ? <div /> : <div />}
 
       {/* right-side controls: show admin settings icon when user is ADMIN */}
-      <div style={{display:'flex', alignItems:'center', gap:8}}>
+      <div style={{display:'flex', alignItems:'center', gap:8, minWidth:180, justifyContent:'flex-end'}}>
+        {!isHome && !hideOnDash && (
+          <nav style={{display:'flex', flexDirection:'row', gap:12, alignItems:'center'}}>
+            <a href="/the-problem" style={{color:'#ddd', textDecoration:'none'}}>The Problem</a>
+            <a href="/why" style={{color:'#ddd', textDecoration:'none'}}>Why This CRM</a>
+            <button
+              className="btn"
+              onClick={(e)=>{
+                e.preventDefault();
+                if (typeof window !== 'undefined' && window.startHomeLoading) {
+                  window.startHomeLoading()
+                } else {
+                  try { document.documentElement.classList.add('nsc-loading') } catch (err) {}
+                  homeStartRef.current = Date.now();
+                  setHomeLoading(true)
+                }
+                router.push('/')
+              }}
+              style={{marginLeft:0}}
+            >
+              {homeLoading ? <span className="spinner" /> : 'Back'}
+            </button>
+          </nav>
+        )}
+
         {user?.role === 'ADMIN' && router.pathname && router.pathname.startsWith('/admin') && (
           <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{e.preventDefault(); router.push('/admin/settings')}} style={{marginLeft:8}}>
             ⚙️

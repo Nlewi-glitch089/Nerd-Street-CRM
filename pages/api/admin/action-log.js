@@ -22,7 +22,21 @@ export default async function handler(req, res) {
       const out = []
       for (const l of logs) {
         let targetName = null
+        let actorName = null
         try {
+          // resolve actor display name when possible
+          if (l.userId) {
+            const u = userMap[l.userId]
+            if (u) actorName = u.name || u.email || u.id
+          }
+          if (!actorName && l.meta) {
+            actorName = l.meta.actorName || l.meta.byName || l.meta.by || null
+          }
+          if (!actorName && l.userId) {
+            // fallback: show short id so it doesn't look like an API key
+            actorName = `admin (${String(l.userId).slice(0,8)})`
+          }
+
           if ((!l.meta || !(l.meta.name || l.meta.title)) && l.targetType) {
             const t = String(l.targetType).toLowerCase()
             if (t === 'campaign') {
@@ -42,7 +56,7 @@ export default async function handler(req, res) {
         } catch (e) {
           console.warn('Failed to enrich action log target name', e)
         }
-        out.push({ id: l.id, action: l.action, targetType: l.targetType, targetId: l.targetId, targetName, user: l.userId ? userMap[l.userId] || { id: l.userId } : null, meta: l.meta || null, createdAt: l.createdAt })
+        out.push({ id: l.id, action: l.action, targetType: l.targetType, targetId: l.targetId, targetName, user: l.userId ? userMap[l.userId] || { id: l.userId } : null, actorName, meta: l.meta || null, createdAt: l.createdAt })
       }
       return res.status(200).json({ logs: out })
     }

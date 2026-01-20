@@ -181,7 +181,7 @@ export default function AdminSettings() {
             ) : (
               actionLogs.map(l => {
                 const when = formatWhen(l.createdAt)
-                const actor = l.user ? (l.user.name || l.user.email || l.user.id) : 'system'
+                const actor = l.actorName || (l.user ? (l.user.name || l.user.email || l.user.id) : 'system')
                 const verbMap = { create: 'created', update: 'updated', delete: 'deleted', approve: 'approved', deactivate: 'deactivated', deny: 'denied' }
                 const verb = verbMap[l.action] || l.action
                 // prefer an enriched `targetName` from the API, then meta.name/title, then id

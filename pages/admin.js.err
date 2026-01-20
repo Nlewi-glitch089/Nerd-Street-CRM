@@ -24,7 +24,6 @@ export default function Admin() {
   const [signOutMessage, setSignOutMessage] = useState(null)
   const [selectedDonor, setSelectedDonor] = useState(null)
   const [campaignsList, setCampaignsList] = useState([])
-  const [actionLogs, setActionLogs] = useState([])
   // AI decision summary UI state
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
@@ -35,10 +34,6 @@ export default function Admin() {
   const [aiChatMessages, setAiChatMessages] = useState([])
   const [aiQuestion, setAiQuestion] = useState('')
   const [aiQuestionLoading, setAiQuestionLoading] = useState(false)
-  // AI generate confirmation modal state
-  const [aiConfirmOpen, setAiConfirmOpen] = useState(false)
-  const [aiConfirmLoading, setAiConfirmLoading] = useState(false)
-  const [aiConfirmAgree, setAiConfirmAgree] = useState(false)
 
   // clear-confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -622,11 +617,10 @@ export default function Admin() {
                   <button className={`btn ${tab==='approvals'?'btn-primary':''}`} onClick={()=>setTab('approvals')}>Campaign Approvals</button>
                   <button className={`btn ${tab==='analytics'?'btn-primary':''}`} onClick={()=>setTab('analytics')}>Full Analytics</button>
                   <div style={{marginLeft:'auto', display:'flex', gap:8}}>
-                      <button className="btn" onClick={()=>setAiConfirmOpen(true)} disabled={aiLoading}>{aiLoading ? 'Generating…' : '🤖 Generate AI Decision Summary'}</button>
+                    <button className="btn" onClick={fetchDecisionSummary} disabled={aiLoading}>{aiLoading ? 'Generating…' : 'Generate Decision Summary'}</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/donors' }}>View Donors</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/campaigns' }}>View Campaigns</button>
-                      <button className="btn btn-danger" onClick={() => { setConfirmOpen(true) }} style={{background:'#ff4d4d', color:'#fff', border:'1px solid rgba(255,77,77,0.9)'}}>Clear All Data</button>
-                      {/* History moved to Admin Settings */}
+                    <button className="btn btn-danger" onClick={() => { setConfirmOpen(true) }} style={{background:'#ff4d4d', color:'#fff', border:'1px solid rgba(255,77,77,0.9)'}}>Clear All Data</button>
                   </div>
                 </div>
 
@@ -849,7 +843,6 @@ export default function Admin() {
                   )}
                 </div>
               </div>
-              {/* History UI removed from dashboard and moved to Admin Settings */}
 
               {/* donors / campaigns quick summaries removed; use the dedicated pages for full lists */}
 
@@ -962,29 +955,21 @@ export default function Admin() {
                           <div style={{marginTop:14, borderTop:'1px solid rgba(255,255,255,0.02)', paddingTop:12}}>
                             <div style={{fontSize:13, color:'#bbb', marginBottom:8}}>Ask follow-up questions</div>
                             <div style={{display:'flex', flexDirection:'column', gap:8}}>
-                              <div style={{maxHeight:180, overflow:'auto', padding:10, background:'#070707', borderRadius:8}}>
-                                {aiChatMessages.length === 0 && !aiQuestionLoading ? (
-                                  <div style={{color:'#8a8a8a', fontSize:13}}>Ask a question about this summary and the assistant will respond.</div>
+                              <div style={{maxHeight:180, overflow:'auto', padding:8, background:'#070707', borderRadius:6}}>
+                                {aiChatMessages.length === 0 ? (
+                                  <div style={{color:'#777'}}>Ask a question about this summary and the assistant will respond.</div>
                                 ) : (
-                                  <div>
-                                    {aiChatMessages.map((m, idx) => (
-                                      <div key={idx} style={{marginBottom:10}}>
-                                        <div style={{fontSize:12, color:'#999', marginBottom:4}}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
-                                        <div style={{color: m.role === 'user' ? '#fff' : '#cfe', fontSize:14, lineHeight:1.5, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{m.text}</div>
-                                      </div>
-                                    ))}
-                                    {aiQuestionLoading && (
-                                      <div style={{display:'flex', alignItems:'center', gap:8, marginTop:6, color:'#bbb'}}>
-                                        <span className="spinner" aria-hidden="true"></span>
-                                        <span style={{fontSize:13}}>Assistant is thinking…</span>
-                                      </div>
-                                    )}
-                                  </div>
+                                  aiChatMessages.map((m, idx) => (
+                                    <div key={idx} style={{marginBottom:8}}>
+                                      <div style={{fontSize:12, color:'#999'}}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
+                                      <div style={{color: m.role === 'user' ? '#ddd' : '#cfe'}}>{m.text}</div>
+                                    </div>
+                                  ))
                                 )}
                               </div>
                               <div style={{display:'flex', gap:8}}>
                                 <input className="input" value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="Ask a follow-up question..." />
-                                <button className={"btn" + (aiQuestionLoading ? ' loading' : '')} onClick={async ()=>{
+                                <button className="btn" onClick={async ()=>{
                                   const q = (aiQuestion||'').trim()
                                   if (!q) return
                                   // append user message
@@ -1005,7 +990,7 @@ export default function Admin() {
                                   } finally {
                                     setAiQuestionLoading(false)
                                   }
-                                }} disabled={aiQuestionLoading || !aiResult}>{aiQuestionLoading ? (<><span className="spinner" style={{marginRight:8}}></span>Thinking…</>) : 'Send'}</button>
+                                }} disabled={aiQuestionLoading || !aiResult}>{aiQuestionLoading ? 'Thinking…' : 'Send'}</button>
                               </div>
                             </div>
                           </div>
@@ -1013,23 +998,6 @@ export default function Admin() {
                       )}
                     </div>
                   )}
-                </div>
-              )}
-
-              {aiConfirmOpen && (
-                <div className="dialog-backdrop">
-                  <div style={{width:520, background:'var(--color-off-black)', border:'1px solid rgba(255,255,255,0.04)', padding:18, borderRadius:8}}>
-                    <h3 style={{color:'var(--color-neon)'}}>Generate AI Decision Summary</h3>
-                    <p style={{color:'#ddd'}}>AI outputs are advisory and may be incorrect. This action may send data to an external AI provider.</p>
-                    <label style={{display:'flex', alignItems:'center', gap:8, marginTop:8}}>
-                      <input type="checkbox" checked={aiConfirmAgree} onChange={e=>setAiConfirmAgree(e.target.checked)} />
-                      <span style={{color:'#bbb'}}>I understand AI outputs are advisory and may be inaccurate.</span>
-                    </label>
-                    <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:12}}>
-                      <button className="btn btn-ghost" onClick={()=>{ setAiConfirmOpen(false); setAiConfirmAgree(false) }}>Cancel</button>
-                      <button className="btn" onClick={async ()=>{ setAiConfirmLoading(true); try { await fetchDecisionSummary(); setAiConfirmOpen(false); setAiConfirmAgree(false); } catch (e) { alert('Failed to generate: '+String(e)) } finally { setAiConfirmLoading(false) } }} disabled={!aiConfirmAgree || aiConfirmLoading}>{aiConfirmLoading? 'Generating…' : 'Generate'}</button>
-                    </div>
-                  </div>
                 </div>
               )}
 

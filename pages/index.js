@@ -26,9 +26,12 @@ export default function Home() {
   function handleLearn(e) {
     e && e.preventDefault()
     // trigger header loader for consistent UX if available
-    if (typeof window !== 'undefined' && window.startHomeLoading) window.startHomeLoading()
-    learnStartRef.current = Date.now()
-    setLoadingLearn(true)
+    if (typeof window !== 'undefined' && window.startHomeLoading) {
+      window.startHomeLoading()
+    } else {
+      learnStartRef.current = Date.now()
+      setLoadingLearn(true)
+    }
     router.push('/the-problem')
   }
 

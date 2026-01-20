@@ -1,5 +1,6 @@
 import { getUserFromToken } from '../../lib/auth'
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 let prisma
 if (!global.__prisma) {
@@ -21,8 +22,8 @@ export default async function handler(req, res) {
   const { password } = req.body || {}
   if (!password) return res.status(400).json({ error: 'Password required to confirm clear' })
 
-  // NOTE: passwords are stored plaintext in this example project. In production, use hashed passwords and a secure compare.
-  if (password !== user.password) return res.status(403).json({ error: 'Password incorrect' })
+  const ok = await bcrypt.compare(String(password), user.password)
+  if (!ok) return res.status(403).json({ error: 'Password incorrect' })
 
   try {
     // Delete donations first to avoid FK issues, then tasks, donors, campaigns

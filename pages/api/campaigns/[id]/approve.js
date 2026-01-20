@@ -1,5 +1,6 @@
 import { getUserFromToken } from '../../../../lib/auth'
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = global.__prisma || new PrismaClient()
 if (!global.__prisma) global.__prisma = prisma
@@ -28,8 +29,9 @@ export default async function handler(req, res) {
 
     if (setApproved === null) return res.status(400).json({ error: 'Missing action or approved flag' })
 
-    // verify password matches actor.password (example project stores plaintext)
-    if (password !== actor.password) return res.status(403).json({ error: 'Password incorrect' })
+    // verify password against stored hash
+    const ok = await bcrypt.compare(String(password), actor.password)
+    if (!ok) return res.status(403).json({ error: 'Password incorrect' })
 
     const updated = await prisma.campaign.update({ where: { id: String(id) }, data: { approved: setApproved } })
 

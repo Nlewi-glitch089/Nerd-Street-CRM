@@ -8,12 +8,18 @@ export default function AdminDonors() {
   const [user, setUser] = useState(null)
 
   const [donors, setDonors] = useState([])
+  const [editingDonor, setEditingDonor] = useState(null)
+  const [donorEditErrors, setDonorEditErrors] = useState(null)
   const [campaigns, setCampaigns] = useState([])
 
   const [newDonor, setNewDonor] = useState({ firstName:'', lastName:'', email:'', phone:'' })
   const [adding, setAdding] = useState(false)
   const [donationModal, setDonationModal] = useState(null) // { donor }
   const [donationLoading, setDonationLoading] = useState(false)
+  const [deleteModal, setDeleteModal] = useState(null) // donor to delete
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [donationForm, setDonationForm] = useState({ amount:'', campaignId:'', method:'CASH', methodDetail:'', notes:'' })
   const [previewDonor, setPreviewDonor] = useState(null) // { donor, totalGiving, giftedTotal, gifts, lastGiftAt }
@@ -313,6 +319,8 @@ export default function AdminDonors() {
                   <div style={{display:'flex', gap:8}}>
                     <button className="btn" onClick={()=>openDonationModal(d)}>Record Donation</button>
                     <button className="btn btn-ghost" onClick={()=>openPreview(d)}>View</button>
+                    <button className="btn" onClick={()=>{ setEditingDonor({ ...d }) }}>Edit</button>
+                    <button className="btn btn-danger" onClick={()=>{ setDeleteModal(d); setDeletePassword(''); setDeleteError(null) }}>Delete</button>
                   </div>
                 </div>
               ))}
@@ -400,6 +408,41 @@ export default function AdminDonors() {
           </div>
         </div>
       )}
+
+      {editingDonor && (
+        <div className="dialog-backdrop">
+          <div style={{width:520, background:'var(--color-off-black)', border:'1px solid rgba(255,255,255,0.04)', padding:18, borderRadius:8}}>
+            <h3 style={{color:'var(--color-neon)'}}>Edit Donor</h3>
+            <form onSubmit={async (e)=>{
+              e.preventDefault()
+              try {
+                setDonorEditErrors(null)
+                if (!editingDonor.firstName || editingDonor.firstName.trim()==='') return setDonorEditErrors('First name required')
+                if (!editingDonor.email || editingDonor.email.trim()==='') return setDonorEditErrors('Email required')
+                const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                const res = await fetch(`/api/donors/${editingDonor.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ firstName: editingDonor.firstName, lastName: editingDonor.lastName, email: editingDonor.email, phone: editingDonor.phone }) })
+                if (!res.ok) { const err = await res.json().catch(()=>({})); return setDonorEditErrors('Update failed: '+(err.error||res.status)) }
+                setEditingDonor(null)
+                await loadDonors()
+              } catch (err) { console.warn(err); setDonorEditErrors('Update failed') }
+            }} style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+              <label style={{fontSize:12, color:'#bbb'}}>First name</label>
+              <input className="input" value={editingDonor.firstName} onChange={e=>setEditingDonor({...editingDonor, firstName: e.target.value})} />
+              <label style={{fontSize:12, color:'#bbb'}}>Last name</label>
+              <input className="input" value={editingDonor.lastName || ''} onChange={e=>setEditingDonor({...editingDonor, lastName: e.target.value})} />
+              <label style={{fontSize:12, color:'#bbb'}}>Email</label>
+              <input className="input" value={editingDonor.email || ''} onChange={e=>setEditingDonor({...editingDonor, email: e.target.value})} />
+              <label style={{fontSize:12, color:'#bbb'}}>Phone</label>
+              <input className="input" value={editingDonor.phone || ''} onChange={e=>setEditingDonor({...editingDonor, phone: e.target.value})} />
+              {donorEditErrors && (<div style={{color:'#ff8080'}}>{donorEditErrors}</div>)}
+              <div style={{display:'flex', gap:8}}>
+                <button className="btn" type="submit">Save</button>
+                <button className="btn btn-ghost" type="button" onClick={()=>setEditingDonor(null)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {previewDonor && (
         <div className="dialog-backdrop">
           <div style={{width:420, background:'var(--color-off-black)', border:'1px solid rgba(255,255,255,0.04)', padding:18, borderRadius:8}}>
@@ -450,6 +493,41 @@ export default function AdminDonors() {
             </div>
             <div style={{display:'flex', justifyContent:'flex-end', marginTop:12}}>
               <button className="btn btn-ghost" onClick={()=>setFullDonor(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteModal && (
+        <div className="dialog-backdrop">
+          <div style={{width:520, background:'var(--color-off-black)', border:'1px solid rgba(255,255,255,0.04)', padding:18, borderRadius:8}}>
+            <h3 style={{color:'var(--color-neon)'}}>Delete Donor</h3>
+            <div style={{color:'#ddd', marginTop:8}}>You are about to delete <strong style={{color:'#fff'}}>{deleteModal.firstName} {deleteModal.lastName || ''}</strong>. This will soft-delete the donor and cannot be undone from the UI.</div>
+            <p style={{color:'#ffb3b3', fontWeight:700, marginTop:8}}>Enter your admin password to confirm.</p>
+            <div style={{marginTop:8}}>
+              <input className="input" type="password" value={deletePassword} onChange={e=>setDeletePassword(e.target.value)} placeholder="Admin password" autoComplete="current-password" />
+            </div>
+            {deleteError && <div style={{color:'#ff8080', marginTop:8}}>{deleteError}</div>}
+            <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:12}}>
+              <button className="btn btn-ghost" onClick={()=>{ setDeleteModal(null); setDeletePassword(''); setDeleteError(null) }}>Cancel</button>
+              <button className="btn btn-danger" onClick={async ()=>{
+                try {
+                  setDeleteLoading(true); setDeleteError(null)
+                  const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                  const res = await fetch('/api/admin/delete-donor', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ id: deleteModal.id, password: deletePassword }) })
+                  const data = await res.json().catch(()=>null)
+                  if (!res.ok) {
+                    setDeleteError(data?.error || 'Delete failed')
+                    return
+                  }
+                  setDeleteModal(null)
+                  setDeletePassword('')
+                  await loadDonors()
+                } catch (err) {
+                  console.warn('Delete donor failed', err)
+                  setDeleteError('Delete failed')
+                } finally { setDeleteLoading(false) }
+              }} disabled={deleteLoading || !deletePassword}>{deleteLoading? 'Deleting...' : 'Delete'}</button>
             </div>
           </div>
         </div>

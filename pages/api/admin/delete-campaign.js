@@ -1,5 +1,6 @@
 import { getUserFromToken } from '../../../lib/auth'
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 let prisma
 if (!global.__prisma) global.__prisma = new PrismaClient()
@@ -20,14 +21,15 @@ export default async function handler(req, res) {
 
   const { password, id } = req.body || {}
   if (!password) return res.status(400).json({ error: 'Password required' })
-  if (password !== actor.password) return res.status(403).json({ error: 'Password incorrect' })
+  const ok = await bcrypt.compare(String(password), actor.password)
+  if (!ok) return res.status(403).json({ error: 'Password incorrect' })
   if (!id) return res.status(400).json({ error: 'Campaign id required' })
 
   try {
     // delete donations first
     await prisma.donation.deleteMany({ where: { campaignId: String(id) } })
-    // delete campaign
-    await prisma.campaign.delete({ where: { id: String(id) } })
+    // delete campaign (model is named `Campaigns` in the schema)
+    await prisma.campaigns.delete({ where: { id: String(id) } })
     return res.status(200).json({ ok: true, deletedId: id })
   } catch (err) {
     console.error('Delete campaign by id error', err)

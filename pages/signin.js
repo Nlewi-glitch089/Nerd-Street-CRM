@@ -9,6 +9,7 @@ export default function SignIn() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState('TEAM_MEMBER')
   const [user, setUser] = useState(null)
   const router = useRouter()
@@ -200,7 +201,10 @@ export default function SignIn() {
 
               <div className="field">
                 <label className="label">Password</label>
-                <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="new-password" />
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password" />
+                  <button type="button" className="btn btn-ghost" onClick={()=>setShowPassword(s=>!s)} aria-label={showPassword ? 'Hide password' : 'Show password'} style={{padding:'6px 10px'}}>{showPassword ? 'Hide' : 'Show'}</button>
+                </div>
               </div>
 
               <div className="actions">
@@ -216,7 +220,10 @@ export default function SignIn() {
 
               <div className="field">
                 <label className="label">Password</label>
-                <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="current-password" />
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <input className="input" value={password} onChange={e=>setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password" />
+                  <button type="button" className="btn btn-ghost" onClick={()=>setShowPassword(s=>!s)} aria-label={showPassword ? 'Hide password' : 'Show password'} style={{padding:'6px 10px'}}>{showPassword ? 'Hide' : 'Show'}</button>
+                </div>
               </div>
 
               <div className="actions">
