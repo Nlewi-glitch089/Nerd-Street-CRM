@@ -10,6 +10,14 @@ Small nonprofits often lose donors due to disorganized data, limited staffing, a
 
 This CRM addresses those challenges by centralizing donor information and emphasizing follow-up awareness over feature bloat.
 
+## Personal note & recent fixes
+
+I reviewed the delete workflow and fixed a server-side error that prevented campaign deletions: the Prisma model in `prisma/schema.prisma` is named `Campaigns` (plural), while the admin API used `prisma.campaign.delete(...)`. I updated `pages/api/admin/delete-campaign.js` to use `prisma.campaigns.delete(...)`, resolving the TypeError and allowing deletions.
+
+I also improved the AI follow-up chat UI in `pages/admin.js` — increased message spacing and line-height, wrapped long text, and added a visible loading spinner and button state so responses show a clear "thinking" state. I added `FEEDBACK.md` with suggested product improvements (CRUD discoverability, user deactivation flow, AI policy & safeguards, and audit logging).
+
+These changes are committed to the repo so reviewers can see the fixes and notes.
+
 ## Core Screens (MVP)
 
 These screens are required and form the foundation of the application.
