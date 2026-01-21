@@ -85,6 +85,21 @@ function Header() {
           <nav style={{display:'flex', flexDirection:'row', gap:12, alignItems:'center'}}>
             <a href="/the-problem" style={{color:'#ddd', textDecoration:'none'}}>The Problem</a>
             <a href="/why" style={{color:'#ddd', textDecoration:'none'}}>Why This CRM</a>
+            <button
+              className="btn"
+              onClick={(e)=>{
+                e.preventDefault();
+                if (typeof window !== 'undefined' && window.startHomeLoading) {
+                  window.startHomeLoading()
+                } else {
+                  try { document.documentElement.classList.add('nsc-loading') } catch (err) {}
+                }
+                router.push('/')
+              }}
+              style={{marginLeft:8}}
+            >
+              Home
+            </button>
           </nav>
         )}
 
