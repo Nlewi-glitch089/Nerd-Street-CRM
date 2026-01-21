@@ -66,6 +66,8 @@ model Campaigns {
   id        String     @id(map: "Campaign_pkey") @default(uuid())
   name      String
   goal      Float?
+  startAt   DateTime?
+  endAt     DateTime?
   active    Boolean    @default(true)
   deletedAt DateTime?
   deletedBy String?
@@ -98,6 +100,19 @@ model ActionLog {
   actorName  String?
   meta       Json?
   createdAt  DateTime @default(now())
+}
+
+model TempAccessRequest {
+  id             String   @id @default(uuid())
+  requesterId    String?
+  requesterEmail String
+  scope          String?
+  note           String?
+  status         String   @default("PENDING")
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime @default(now())
 }
 
 model playing_with_neon {

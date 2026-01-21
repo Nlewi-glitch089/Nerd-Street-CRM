@@ -120,6 +120,15 @@ export default function AdminCampaigns(){
     }catch(e){ console.warn(e) }
   }
 
+  function toLocalInput(dt) {
+    if (!dt) return ''
+    try {
+      const d = new Date(dt)
+      const pad = (n) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    } catch (e) { return '' }
+  }
+
   async function toggleApprove(campaignId, approve){
     try{
       const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
@@ -168,6 +177,9 @@ export default function AdminCampaigns(){
                   <div style={{flex:1}}>
                     <div style={{fontWeight:700}}>{c.name || c.title}</div>
                     <div style={{fontSize:12, color:'#bbb'}}>Raised: ${usedRaised} — Goal: {goal?`$${goal}`:'—'}</div>
+                    {(c.startAt || c.endAt) && (
+                      <div style={{fontSize:12, color:'#bbb', marginTop:6}}>Timeframe: {c.startAt ? new Date(c.startAt).toLocaleString() : '—'} → {c.endAt ? new Date(c.endAt).toLocaleString() : '—'}</div>
+                    )}
                     {(c.gifted || c.giftedRaised != null) && (
                       <div style={{fontSize:12, color:'#9be', marginTop:6}}>Raised (gifts): <strong style={{color:'var(--color-neon)'}}>${(c.gifted || c.giftedRaised || 0)}</strong></div>
                     )}
@@ -215,7 +227,11 @@ export default function AdminCampaigns(){
                 const goalVal = editingCampaign.goal == null || editingCampaign.goal === '' ? null : Number(editingCampaign.goal)
                 if (goalVal != null && (isNaN(goalVal) || goalVal < 0)) return setEditErrors('Goal must be a positive number')
                 const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-                const res = await fetch(`/api/campaigns/${editingCampaign.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ name: editingCampaign.name, goal: goalVal, approved: !!editingCampaign.approved }) })
+                const payload = { name: editingCampaign.name, goal: goalVal, approved: !!editingCampaign.approved }
+                // include dates if provided (allow clearing by sending null)
+                if (editingCampaign.startAt !== undefined) payload.startAt = editingCampaign.startAt ? new Date(editingCampaign.startAt).toISOString() : null
+                if (editingCampaign.endAt !== undefined) payload.endAt = editingCampaign.endAt ? new Date(editingCampaign.endAt).toISOString() : null
+                const res = await fetch(`/api/campaigns/${editingCampaign.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify(payload) })
                 if (!res.ok) { const err = await res.json().catch(()=>({})); return setEditErrors('Update failed: '+(err.error||res.status)) }
                 setEditingCampaign(null)
                 await loadCampaigns()
@@ -223,6 +239,16 @@ export default function AdminCampaigns(){
             }} style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
               <label style={{fontSize:12, color:'#bbb'}}>Name</label>
               <input className="input" value={editingCampaign.name} onChange={e=>setEditingCampaign({...editingCampaign, name: e.target.value})} />
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                <div>
+                  <label style={{fontSize:12, color:'#bbb'}}>Start</label>
+                  <input className="input" type="datetime-local" value={toLocalInput(editingCampaign.startAt)} onChange={e=>setEditingCampaign({...editingCampaign, startAt: e.target.value || null})} />
+                </div>
+                <div>
+                  <label style={{fontSize:12, color:'#bbb'}}>End</label>
+                  <input className="input" type="datetime-local" value={toLocalInput(editingCampaign.endAt)} onChange={e=>setEditingCampaign({...editingCampaign, endAt: e.target.value || null})} />
+                </div>
+              </div>
               <label style={{fontSize:12, color:'#bbb'}}>Goal</label>
               <input className="input" value={editingCampaign.goal == null ? '' : editingCampaign.goal} onChange={e=>setEditingCampaign({...editingCampaign, goal: e.target.value})} />
               <label style={{fontSize:12, color:'#bbb'}}><input type="checkbox" checked={!!editingCampaign.approved} onChange={e=>setEditingCampaign({...editingCampaign, approved: e.target.checked})} /> Approved</label>

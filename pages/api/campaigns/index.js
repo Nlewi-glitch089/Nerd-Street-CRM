@@ -11,9 +11,12 @@ export default async function handler(req, res) {
       const actor = token ? await getUserFromToken(token) : null
       if (!actor) return res.status(401).json({ error: 'Unauthorized' })
       if (actor.role !== 'ADMIN') return res.status(403).json({ error: 'Admin required' })
-      const { name, goal, approved } = req.body || {}
+      const { name, goal, approved, startAt, endAt } = req.body || {}
       if (!name) return res.status(400).json({ error: 'name required' })
-      const created = await prisma.campaigns.create({ data: { name, goal: goal == null ? null : Number(goal), approved: !!approved } })
+      const data = { name, goal: goal == null ? null : Number(goal), approved: !!approved }
+      if (startAt) data.startAt = new Date(startAt)
+      if (endAt) data.endAt = new Date(endAt)
+      const created = await prisma.campaigns.create({ data })
       try { await prisma.actionLog.create({ data: { action: 'create', targetType: 'campaign', targetId: created.id, userId: actor.id, actorName: actor.name || actor.email || actor.id, meta: { name, goal, approved } } }) } catch (e) {}
       return res.status(201).json({ campaign: { id: created.id, name: created.name, goal: created.goal, approved: created.approved } })
     } catch (err) {
@@ -40,7 +43,7 @@ export default async function handler(req, res) {
       const giftedRaised = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
       // Treat campaigns with funds as implicitly approved for UI display
       const impliedApproved = raised > 0
-      return { id: c.id, name: c.name, goal: c.goal, raised, giftedRaised, approved: !!c.approved || impliedApproved }
+      return { id: c.id, name: c.name, goal: c.goal, startAt: c.startAt || null, endAt: c.endAt || null, raised, giftedRaised, approved: !!c.approved || impliedApproved }
     })
       // Dev-only overrides: enable when not in production or when DEMO_OVERRIDES=true
       try {
@@ -92,7 +95,7 @@ export default async function handler(req, res) {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const giftedRaised = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const impliedApproved = raised > 0
-        return { id: c.id, name: c.name, goal: c.goal, raised, giftedRaised, approved: !!c.approved || impliedApproved }
+        return { id: c.id, name: c.name, goal: c.goal, startAt: c.startAt || null, endAt: c.endAt || null, raised, giftedRaised, approved: !!c.approved || impliedApproved }
       })
       return res.status(200).json({ campaigns: freshList })
     } catch (e) {

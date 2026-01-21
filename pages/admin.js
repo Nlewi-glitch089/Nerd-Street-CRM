@@ -25,6 +25,11 @@ export default function Admin() {
   const [selectedDonor, setSelectedDonor] = useState(null)
   const [campaignsList, setCampaignsList] = useState([])
   const [actionLogs, setActionLogs] = useState([])
+  const [selectedRequestsEmail, setSelectedRequestsEmail] = useState(null)
+  const [selectedRequests, setSelectedRequests] = useState([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [pendingRequestsByEmail, setPendingRequestsByEmail] = useState({})
   // AI decision summary UI state
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
@@ -101,6 +106,8 @@ export default function Admin() {
           loadCampaigns().catch(()=>{})
           loadAnalytics().catch(()=>{})
           loadDonors().catch(()=>{})
+          // load pending requests count for badge
+          try { loadPendingRequestsCount().catch(()=>{}); loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
         }
       } catch (err) {
         if (mounted) setError('Network error')
@@ -286,6 +293,35 @@ export default function Admin() {
               console.warn('loadUsers failed', e)
             }
           }
+
+              async function loadPendingRequestsCount() {
+                try {
+                  const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                  const res = await fetch('/api/admin/request-access/list', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                  if (!res.ok) return
+                  const d = await res.json().catch(()=>null)
+                  const rows = Array.isArray(d?.requests) ? d.requests : []
+                  const pending = rows.filter(r => (r.status || '').toUpperCase() === 'PENDING').length
+                  setPendingRequestsCount(pending)
+                } catch (e) { console.warn('loadPendingRequestsCount failed', e) }
+              }
+
+              async function loadPendingRequestsMap() {
+                try {
+                  const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                  const res = await fetch('/api/admin/request-access/list', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                  if (!res.ok) return
+                  const d = await res.json().catch(()=>null)
+                  const rows = Array.isArray(d?.requests) ? d.requests : []
+                  const map = {}
+                  for (const r of rows) {
+                    const e = (r.requesterEmail || '').toLowerCase()
+                    if (!map[e]) map[e] = 0
+                    if ((r.status || '').toUpperCase() === 'PENDING') map[e] += 1
+                  }
+                  setPendingRequestsByEmail(map)
+                } catch (e) { console.warn('loadPendingRequestsMap failed', e) }
+              }
 
           // load donors so the admin dashboard shows live donor/donation data on sign-in
           async function loadDonors(){
@@ -480,20 +516,11 @@ export default function Admin() {
               setSeedLoading && setSeedLoading(false)
             } catch (e) { console.warn('Error clearing client state', e) }
             try {
-              console.log('Signing out: clearing client state and redirecting')
-              setSignOutMessage('Signed out')
-              // short delay so user can see the toast
-              setTimeout(() => {
-                setSignOutMessage(null)
-                try {
-                  router.replace('/')
-                } catch (e) {
-                  console.warn('router.replace failed during sign-out, falling back to location.href', e)
-                  try { window.location.href = '/' } catch (err) { console.warn('Fallback redirect failed', err) }
-                }
-              }, 800)
+              console.log('Signing out: clearing client state and redirecting to signin')
+              // navigate immediately to signin after clearing state to avoid flashing dashboard
+              try { router.replace('/signin') } catch (e) { console.warn('router.replace failed during sign-out', e); try { window.location.href = '/signin' } catch (err) { console.warn('Fallback redirect failed', err) } }
             } catch (e) {
-              try { window.location.href = '/' } catch (err) { console.warn('Redirect failed', err) }
+              try { window.location.href = '/signin' } catch (err) { console.warn('Redirect failed', err) }
             }
           }
 
@@ -618,7 +645,7 @@ export default function Admin() {
               {/* Tabs for admin sections */}
               <div style={{marginTop:18}}>
                 <div style={{display:'flex', gap:12}}>
-                  <button className={`btn ${tab==='users'?'btn-primary':''}`} onClick={()=>setTab('users')}>User Management</button>
+                    <button className={`btn ${tab==='users'?'btn-primary':''}`} onClick={()=>setTab('users')}>User Management{pendingRequestsCount>0 && <span style={{marginLeft:8, background:'#ffb86b', color:'#000', padding:'2px 6px', borderRadius:12, fontSize:12, fontWeight:700}}>{pendingRequestsCount}</span>}</button>
                   <button className={`btn ${tab==='approvals'?'btn-primary':''}`} onClick={()=>setTab('approvals')}>Campaign Approvals</button>
                   <button className={`btn ${tab==='analytics'?'btn-primary':''}`} onClick={()=>setTab('analytics')}>Full Analytics</button>
                   <div style={{marginLeft:'auto', display:'flex', gap:8}}>
@@ -638,18 +665,92 @@ export default function Admin() {
                       <input className="input" placeholder="Search users..." value={userSearch} onChange={e=>setUserSearch(e.target.value)} />
                       <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
                         {(usersList.filter(u => (u.name||u.email||'').toLowerCase().includes(userSearch.toLowerCase()) )).map(u=> (
-                          <div key={u.id} style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <div>
-                              <div style={{fontWeight:700}}>{u.name} <span style={{background:u.role==='ADMIN'? 'var(--color-neon)':'#444', color:'#000', padding:'2px 6px', borderRadius:6, fontSize:12, marginLeft:8}}>{u.role.toLowerCase()}</span></div>
-                              <div style={{fontSize:12, color:'#bbb'}}>{u.email}</div>
+                          <div key={u.id} style={{display:'flex', flexDirection:'column', gap:8}}>
+                            <div style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                              <div>
+                                <div style={{fontWeight:700}}>
+                                  {u.name} <span style={{background:u.role==='ADMIN'? 'var(--color-neon)':'#444', color:'#000', padding:'2px 6px', borderRadius:6, fontSize:12, marginLeft:8}}>{u.role.toLowerCase()}</span>
+                                  {((pendingRequestsByEmail[((u.email||'').toLowerCase())] || 0) > 0) && (
+                                    <span style={{marginLeft:8, background:'#ffb86b', color:'#000', padding:'2px 6px', borderRadius:12, fontSize:12, fontWeight:700}}>{pendingRequestsByEmail[((u.email||'').toLowerCase())]}</span>
+                                  )}
+                                </div>
+                                <div style={{fontSize:12, color:'#bbb'}}>{u.email}</div>
+                              </div>
+                              <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                {u.role !== 'ADMIN' ? (
+                                  <button className="btn" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('ADMIN'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Promote to Admin</button>
+                                ) : (
+                                  <button className="btn btn-ghost" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('TEAM_MEMBER'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Set as Team Member</button>
+                                )}
+                                <button className="btn btn-ghost" onClick={async ()=>{
+                                  try {
+                                    const norm = (u.email || '').toLowerCase()
+                                    if (selectedRequestsEmail === norm) {
+                                      // toggle closed
+                                      setSelectedRequestsEmail(null)
+                                      setSelectedRequests([])
+                                      return
+                                    }
+                                    setRequestsLoading(true)
+                                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                    const res = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                                    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                    const data = await res.json()
+                                    setSelectedRequestsEmail(norm)
+                                    setSelectedRequests(data.requests || [])
+                                  } catch (e) {
+                                    console.warn('Load user requests failed', e)
+                                    alert('Failed to load requests')
+                                  } finally { setRequestsLoading(false) }
+                                }}>{requestsLoading && selectedRequestsEmail===(u.email||'').toLowerCase() ? 'Loading…' : 'Requests'}</button>
+                              </div>
                             </div>
-                            <div>
-                              {u.role !== 'ADMIN' ? (
-                                <button className="btn" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('ADMIN'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Promote to Admin</button>
-                              ) : (
-                                <button className="btn btn-ghost" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('TEAM_MEMBER'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Set as Team Member</button>
-                              )}
-                            </div>
+                            {selectedRequestsEmail === (u.email || '').toLowerCase() && (
+                              <div style={{marginTop:8, padding:12, border:'1px dashed rgba(255,255,255,0.03)', borderRadius:6, background:'#070707'}}>
+                                {selectedRequests.length === 0 ? (
+                                  <div style={{color:'#888'}}>No requests for this user.</div>
+                                ) : (
+                                  selectedRequests.map(r => (
+                                    <div key={r.id} style={{display:'flex', justifyContent:'space-between', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
+                                      <div>
+                                        <div style={{fontWeight:700}}>{r.scope} <span style={{fontWeight:400, marginLeft:8, color:'#bbb'}}>{r.status}</span></div>
+                                        <div style={{color:'#bbb', marginTop:6}}>{r.note}</div>
+                                        <div style={{color:'#777', fontSize:12, marginTop:6}}>Requested: {new Date(r.createdAt).toLocaleString()}</div>
+                                      </div>
+                                      <div style={{minWidth:140, display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
+                                        {r.status === 'PENDING' ? (
+                                          <>
+                                            <button className="btn btn-primary" onClick={async ()=>{
+                                              try {
+                                                const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                                const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'APPROVE' }) })
+                                                if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                                // refresh
+                                                const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                                                const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
+                                              } catch (e) { alert('Approve failed: ' + (e.message||e)) }
+                                              try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
+                                            }}>Approve</button>
+                                            <button className="btn btn-ghost" onClick={async ()=>{
+                                              try {
+                                                const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                                const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'DENY' }) })
+                                                if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                                const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                                                const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
+                                                } catch (e) { alert('Deny failed: ' + (e.message||e)) }
+                                                try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
+                                            }}>Deny</button>
+                                          </>
+                                        ) : (
+                                          <div style={{color:'#aaa'}}>{r.status}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

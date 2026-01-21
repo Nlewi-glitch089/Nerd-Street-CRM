@@ -80,28 +80,33 @@ function Header() {
 
       {/* right-side controls: show admin settings icon when user is ADMIN */}
       <div style={{display:'flex', alignItems:'center', gap:8, minWidth:180, justifyContent:'flex-end'}}>
-        {!isHome && !hideOnDash && (
+        {/* Public landing links only appear on the public landing pages */}
+        {(['/the-problem', '/why'].includes(router.pathname)) && (
           <nav style={{display:'flex', flexDirection:'row', gap:12, alignItems:'center'}}>
             <a href="/the-problem" style={{color:'#ddd', textDecoration:'none'}}>The Problem</a>
             <a href="/why" style={{color:'#ddd', textDecoration:'none'}}>Why This CRM</a>
-            <button
-              className="btn"
-              onClick={(e)=>{
-                e.preventDefault();
-                if (typeof window !== 'undefined' && window.startHomeLoading) {
-                  window.startHomeLoading()
-                } else {
-                  try { document.documentElement.classList.add('nsc-loading') } catch (err) {}
-                  homeStartRef.current = Date.now();
-                  setHomeLoading(true)
-                }
-                router.push('/')
-              }}
-              style={{marginLeft:0}}
-            >
-              {homeLoading ? <span className="spinner" /> : 'Back'}
-            </button>
           </nav>
+        )}
+
+        {/* Home link where Back used to be (non-home, non-dashboard routes for non-team users) */}
+        {!isHome && !hideOnDash && user && user.role !== 'TEAM_MEMBER' && (
+          <button
+            className="btn"
+            onClick={(e)=>{
+              e.preventDefault();
+              if (typeof window !== 'undefined' && window.startHomeLoading) {
+                window.startHomeLoading()
+              } else {
+                try { document.documentElement.classList.add('nsc-loading') } catch (err) {}
+                homeStartRef.current = Date.now();
+                setHomeLoading(true)
+              }
+              router.push('/')
+            }}
+            style={{marginLeft:8}}
+          >
+            Home
+          </button>
         )}
 
         {user?.role === 'ADMIN' && router.pathname && router.pathname.startsWith('/admin') && (

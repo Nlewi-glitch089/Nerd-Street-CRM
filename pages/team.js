@@ -12,6 +12,7 @@ export default function Team() {
   const [partners, setPartners] = useState([])
   const [selectedPartner, setSelectedPartner] = useState(null)
   const [recentActivity, setRecentActivity] = useState([])
+  const [logsLoading, setLogsLoading] = useState(false)
   const [signOutMessage, setSignOutMessage] = useState(null)
 
   function formatOwnersForDisplay(p) {
@@ -42,6 +43,19 @@ export default function Team() {
     const now = new Date()
     const diff = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - parsed) / (1000 * 60 * 60 * 24))
     return diff > 0 ? diff : 0
+  }
+
+  // human-friendly timestamp + relative time
+  function formatWhen(iso) {
+    try {
+      const d = new Date(iso)
+      const now = Date.now()
+      const diff = Math.round((now - d.getTime()) / 1000)
+      if (diff < 60) return `${d.toLocaleString()} (${diff}s ago)`
+      if (diff < 3600) return `${d.toLocaleString()} (${Math.round(diff/60)}m ago)`
+      if (diff < 86400) return `${d.toLocaleString()} (${Math.round(diff/3600)}h ago)`
+      return `${d.toLocaleString()} (${Math.round(diff/86400)}d ago)`
+    } catch (e) { return String(iso) }
   }
 
   useEffect(() => {
@@ -176,16 +190,8 @@ export default function Team() {
               setPartners([])
               setRecentActivity([])
             } catch (e) { console.warn('Error clearing client state', e) }
-            setSignOutMessage('Signed out')
-            setTimeout(() => {
-              setSignOutMessage(null)
-              try {
-                router.replace('/')
-              } catch (e) {
-                console.warn('router.replace failed during sign-out, falling back to location.href', e)
-                try { window.location.href = '/' } catch (err) { console.warn('Fallback redirect failed', err) }
-              }
-            }, 800)
+            // navigate immediately to signin after clearing state to avoid flashing dashboard
+            try { router.replace('/signin') } catch (e) { console.warn('router.replace failed during sign-out', e); try { window.location.href = '/signin' } catch (err) { console.warn('Fallback redirect failed', err) } }
           }}>Logout</button>
         </div>
       </div>
@@ -276,11 +282,27 @@ export default function Team() {
         </div>
         <div style={{display:'flex', flexDirection:'column', gap:12}}>
           <div style={{padding:14, border:'1px solid rgba(255,255,255,0.03)', borderRadius:8}}>
-            <div style={{fontWeight:700, color:'var(--color-neon)'}}>Recent Activity</div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div style={{fontWeight:700, color:'var(--color-neon)'}}>Recent Activity</div>
+              <div>
+                <button className="btn" onClick={async ()=>{
+                  setLogsLoading(true)
+                  try {
+                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                    const res = await fetch('/api/seed', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                    if (res.ok) {
+                      const sd = await res.json()
+                      const normRecent = (sd.recentActivity || []).map((it, i) => ({ id: it.id || `r${i+1}`, partner: it.partner || it.title || it.name || '', text: it.text || it.note || '', date: it.date || it.at || '' }))
+                      setRecentActivity(normRecent)
+                    }
+                  } catch (e) { console.warn('Refresh failed', e) } finally { setLogsLoading(false) }
+                }} disabled={logsLoading}>{logsLoading ? 'Loading…' : 'Refresh'}</button>
+              </div>
+            </div>
             {recentActivity.map(r => (
               <div key={r.id} style={{marginTop:10}}>
-                <div style={{fontWeight:700}}>{r.partner} <span style={{fontSize:12, color:'#bbb', marginLeft:8}}>{r.date}</span></div>
-                <div style={{fontSize:13, color:'#bbb'}}>{r.text}</div>
+                <div style={{fontWeight:700, lineHeight:1.2}}>{r.partner} <span style={{fontSize:12, color:'#bbb', marginLeft:8}}>{formatWhen(r.date)}</span></div>
+                <div style={{fontSize:13, color:'#bbb', whiteSpace:'pre-wrap', marginTop:6}}>{r.text}</div>
               </div>
             ))}
           </div>
@@ -321,18 +343,49 @@ export default function Team() {
                 {followUps.length === 0 && (<div style={{color:'#888'}}>No follow-ups scheduled</div>)}
                 {followUps.map(f => (
                   <div key={f.id} style={{padding:10, border:'1px solid rgba(57,255,20,0.04)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <div>
-                      <div style={{fontWeight:700}}>{f.campaign?.name || f.name}</div>
-                      <div style={{fontSize:12, color:'#bbb'}}>{f.note || `${f.days}+ days since contact`}</div>
-                      {f.assignedRole && <div style={{fontSize:12, color:'#9ea', marginTop:6}}>Assigned Role: {f.assignedRole}</div>}
-                      {f.support && f.support.length > 0 && (
-                        <div style={{fontSize:12, color:'#9ea', marginTop:4}}>Support: {f.support.map(s => s.name + (s.role ? ` — ${s.role}` : '')).join(', ')}</div>
-                      )}
+                    <div style={{display:'flex', gap:12, alignItems:'center'}}>
+                      <div style={{width:36, height:36, borderRadius:18, background:'#111', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, color:'var(--color-neon)'}}>
+                        {(() => {
+                          const name = (f.support && f.support[0] && f.support[0].name) || f.assigned || ''
+                          const parts = String(name || '').trim().split(' ').filter(Boolean)
+                          if (parts.length === 0) return '—'
+                          if (parts.length === 1) return parts[0].slice(0,2).toUpperCase()
+                          return (parts[0][0] + parts[1][0]).toUpperCase()
+                        })()}
+                      </div>
+                      <div>
+                        <div style={{fontWeight:700}}>{f.campaign?.name || f.name}</div>
+                        <div style={{fontSize:12, color:'#bbb'}}>{f.note || `${f.days}+ days since contact`}</div>
+                        {f.assignedRole && <div style={{fontSize:12, color:'#9ea', marginTop:6}}>Assigned Role: {f.assignedRole}</div>}
+                        {f.support && f.support.length > 0 && (
+                          <div style={{fontSize:12, color:'#9ea', marginTop:4}}>Support: {f.support.map(s => s.name + (s.role ? ` — ${s.role}` : '')).join(', ')}</div>
+                        )}
+                      </div>
                     </div>
                     <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
                       <div style={{width:10, height:10, borderRadius:10, background:(f.days && f.days > 60) ? '#ff4d4f' : '#ffcc00'}} />
-                      <button className="btn btn-link" onClick={() => {
-                        // try to find a related partner by name
+                      <button className="btn btn-link" onClick={async () => {
+                        // Try to link to a campaign detail page first (by name match)
+                        try {
+                          const qname = (f.campaign?.name || f.name || '').toLowerCase().trim()
+                          if (qname) {
+                            const res = await fetch('/api/campaigns')
+                            if (res.ok) {
+                              const data = await res.json()
+                              const list = Array.isArray(data.campaigns) ? data.campaigns : []
+                              // try exact name match first, then partial
+                              let found = list.find(c => (c.name || '').toLowerCase().trim() === qname)
+                              if (!found) found = list.find(c => (c.name || '').toLowerCase().includes(qname.split(' ')[0]))
+                              if (found) {
+                                try { router.push(`/campaigns/${found.id}`); return } catch (e) { /* fall through */ }
+                              }
+                            }
+                          }
+                        } catch (err) {
+                          console.warn('Campaign lookup failed', err)
+                        }
+
+                        // fallback: try to find a related partner by name
                         const related = partners.find(p => (p.name || '').toLowerCase().includes((f.campaign?.name || f.name || '').toLowerCase().split(' ')[0]))
                         if (related) {
                           setSelectedPartner(related)

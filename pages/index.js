@@ -13,7 +13,11 @@ export default function Home() {
         const res = await fetch('/api/protected', { headers: { Authorization: `Bearer ${token}` } })
         if (res.ok) {
           const data = await res.json()
-          if (data && data.user) router.replace('/admin')
+          if (data && data.user) {
+            const role = data.user.role || ''
+            if (role === 'ADMIN') router.replace('/admin')
+            else router.replace('/team')
+          }
         }
       } catch (e) { /* ignore */ }
     }

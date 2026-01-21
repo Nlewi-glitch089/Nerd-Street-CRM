@@ -8,6 +8,10 @@ export default function AdminDonors() {
   const [user, setUser] = useState(null)
 
   const [donors, setDonors] = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [totalDonors, setTotalDonors] = useState(0)
   const [editingDonor, setEditingDonor] = useState(null)
   const [donorEditErrors, setDonorEditErrors] = useState(null)
   const [campaigns, setCampaigns] = useState([])
@@ -116,22 +120,29 @@ export default function AdminDonors() {
   // demo generators removed — always rely on server data
 
   function filteredDonors(list, term) {
-    if (!term || term.trim()==='') return list
+    if (!term || term.trim() === '') return list
     const q = term.toLowerCase()
-    // if user types a single character, match by startsWith for more precise narrowing
-    if (q.length === 1) {
-      return list.filter(d => {
-        const first = (d.firstName||'').toLowerCase()
-        const last = (d.lastName||'').toLowerCase()
-        const email = (d.email||'').toLowerCase()
-        return first.startsWith(q) || last.startsWith(q) || email.startsWith(q)
-      })
-    }
-    return list.filter(d => {
-      const name = ((d.firstName||'') + ' ' + (d.lastName||'')).toLowerCase()
-      const email = (d.email||'').toLowerCase()
-      return name.includes(q) || email.includes(q)
-    })
+    // Ranking: prefer starts-with on first/last/email, then full name starts-with, then contains matches.
+    // For single-character queries, only return starts-with matches to avoid broad contains matches (e.g., 'y' matching 'Evelyn').
+    const scored = list.map(d => {
+      const first = (d.firstName || '').toString().toLowerCase()
+      const last = (d.lastName || '').toString().toLowerCase()
+      const name = ((d.firstName || '') + ' ' + (d.lastName || '')).trim().toLowerCase()
+      const email = (d.email || '').toString().toLowerCase()
+      let score = 9999
+      if (q.length === 1) {
+        if (first.startsWith(q) || last.startsWith(q) || email.startsWith(q)) score = 0
+      } else {
+        if (first.startsWith(q)) score = 0
+        else if (last.startsWith(q)) score = 1
+        else if (email.startsWith(q)) score = 2
+        else if (name.startsWith(q)) score = 3
+        else if (first.includes(q) || last.includes(q) || name.includes(q) || email.includes(q)) score = 4
+      }
+      return { donor: d, score }
+    }).filter(x => x.score < 9000).sort((a, b) => a.score - b.score).map(x => x.donor)
+
+    return scored
   }
 
   useEffect(()=>{
@@ -147,29 +158,67 @@ export default function AdminDonors() {
         setUser(data.user)
           // show success toast if navigated here after creating a donor
           try {
-            const added = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('added')) || null
-            const addedName = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('name')) || null
+            const params = (typeof window !== 'undefined') ? new URLSearchParams(window.location.search) : null
+            const added = params ? params.get('added') : null
+            const addedName = params ? params.get('name') : null
+            const addedId = params ? params.get('id') : null
             if (added) {
-              setFlashMessage(addedName ? `Created donor: ${addedName}` : 'Donor created')
+              const label = addedName ? `Created donor: ${addedName}` : 'Donor created'
+              const withId = addedId ? `${label} (id: ${addedId})` : label
+              setFlashMessage(withId)
               // remove the query from the URL without reloading
-              try { const u = new URL(window.location.href); u.searchParams.delete('added'); u.searchParams.delete('name'); window.history.replaceState({}, '', u.toString()) } catch(e){}
-              setTimeout(()=>setFlashMessage(null), 5000)
+              try { const u = new URL(window.location.href); u.searchParams.delete('added'); u.searchParams.delete('name'); u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } catch(e){}
+              setTimeout(()=>setFlashMessage(null), 7000)
             }
           } catch(e){}
-        await loadDonors()
+        await loadDonors(page)
         await loadCampaigns()
       }catch(err){ console.warn(err); setError('Network error') } finally { if (mounted) setLoading(false) }
     })()
     return ()=>{ mounted=false }
   },[])
 
-  async function loadDonors(){
+  // debounce server-side search: when searchTerm changes, query the API after a short delay
+  useEffect(() => {
+    let mounted = true
+    if (!searchTerm || searchTerm.trim() === '') {
+      // if cleared, reload full list
+      (async () => { try { setPage(1); await loadDonors(1) } catch (e){} })()
+      return () => { mounted = false }
+    }
+    const handle = setTimeout(async () => {
+      try {
+        setSearchLoading(true)
+        const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+        const res = await fetch('/api/donors?q=' + encodeURIComponent(searchTerm) + '&page=1&pageSize=' + encodeURIComponent(pageSize), { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+        if (!res.ok) {
+          console.warn('Search /api/donors failed', res.status)
+          return
+        }
+        const data = await res.json()
+        if (!mounted) return
+        setDonors(Array.isArray(data?.donors) ? data.donors : [])
+        setPage(data?.page || 1)
+        setPageSize(data?.pageSize || pageSize)
+        setTotalDonors(typeof data?.total === 'number' ? data.total : (Array.isArray(data?.donors) ? data.donors.length : 0))
+      } catch (e) { console.warn('Search failed', e) }
+      finally { if (mounted) setSearchLoading(false) }
+    }, 300)
+    return () => { mounted = false; clearTimeout(handle) }
+  }, [searchTerm])
+
+  async function loadDonors(pageArg, pageSizeArg){
     try{
       const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-      const res = await fetch('/api/donors', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+      const usePage = (typeof pageArg === 'number' && pageArg >= 1) ? pageArg : page
+      const usePageSize = (typeof pageSizeArg === 'number' && pageSizeArg > 0) ? pageSizeArg : pageSize
+      const res = await fetch('/api/donors?page=' + encodeURIComponent(usePage) + '&pageSize=' + encodeURIComponent(usePageSize), { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
       if (!res.ok) return
       const data = await res.json()
       const list = data.donors || []
+      setPage(data?.page || usePage)
+      setPageSize(data?.pageSize || usePageSize)
+      setTotalDonors(typeof data?.total === 'number' ? data.total : (Array.isArray(list) ? list.length : 0))
       if (!list || list.length === 0) {
         // attempt to auto-seed server-side data and reload
         try {
@@ -264,9 +313,23 @@ export default function AdminDonors() {
     try{
       const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
       const res = await fetch('/api/donors', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify(newDonor) })
-      if (!res.ok) { const err = await res.json().catch(()=>({})); return alert('Add donor failed: '+(err.error||'unknown')) }
+      const text = await res.text().catch(()=>(''))
+      let data = {}
+      try { data = text ? JSON.parse(text) : {} } catch (e) { data = { __raw: text } }
+      if (!res.ok) {
+        const message = data?.error || data?.details || data?.__raw || `Add donor failed (${res.status})`
+        setFlashMessage(message)
+        setTimeout(()=>setFlashMessage(null), 7000)
+        return
+      }
+      // success: show friendly confirmation including the created id
+      const createdName = (data && data.donor && (data.donor.firstName || data.donor.email)) || ''
+      const createdId = (data && data.donor && data.donor.id) || ''
+      setFlashMessage(createdId ? `Created donor: ${createdName} (id: ${createdId})` : `Created donor: ${createdName}`)
+      setTimeout(()=>setFlashMessage(null), 7000)
       setNewDonor({ firstName:'', lastName:'', email:'', phone:'' })
-      await loadDonors()
+      setPage(1)
+      await loadDonors(1, pageSize)
     }catch(e){ console.warn(e); alert('Failed to add donor') } finally { setAdding(false) }
   }
 
@@ -300,8 +363,9 @@ export default function AdminDonors() {
           <div style={{border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:8}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
               <div style={{fontWeight:700}}>All Donors</div>
-              <div style={{width:320}}>
-                <input className="input" placeholder="Filter by name or email" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
+              <div style={{width:320, display:'flex', alignItems:'center', gap:8}}>
+                <input className="input" placeholder="Filter by name or email" value={searchTerm} onChange={e=>{ setSearchTerm(e.target.value); setPage(1); }} />
+                {searchLoading && <div style={{fontSize:12, color:'#9ea'}}>Searching...</div>}
               </div>
             </div>
             <div style={{marginTop:8, display:'flex', flexDirection:'column', gap:8}}>
@@ -324,6 +388,26 @@ export default function AdminDonors() {
                   </div>
                 </div>
               ))}
+            </div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:10}}>
+              <div style={{fontSize:13, color:'#bbb'}}>
+                {totalDonors ? (()=>{
+                  const start = Math.min((page-1)*pageSize + 1, totalDonors)
+                  const end = Math.min((page-1)*pageSize + (donors ? donors.length : 0), totalDonors)
+                  return `Showing ${start}-${end} of ${totalDonors}`
+                })() : 'Showing results'}
+              </div>
+              <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                {searchLoading && <div style={{fontSize:12, color:'#9ea'}}>Searching...</div>}
+                <button className="btn btn-ghost" disabled={page <= 1} onClick={async ()=>{ const np = Math.max(1, page-1); setPage(np); await loadDonors(np) }}>Prev</button>
+                <button className="btn btn-ghost" disabled={((page*pageSize) >= totalDonors)} onClick={async ()=>{ const np = page+1; setPage(np); await loadDonors(np) }}>Next</button>
+                <select className="input" value={pageSize} onChange={async (e)=>{ const v = parseInt(e.target.value,10)||25; setPageSize(v); setPage(1); await loadDonors(1, v) }} style={{width:80}}>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

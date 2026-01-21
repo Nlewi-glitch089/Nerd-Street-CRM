@@ -160,6 +160,7 @@ export default function SignIn() {
     setEmail('')
     setPassword('')
     setMode('signin')
+    try { router.replace('/signin') } catch (e) { console.warn('router.replace failed during sign-out', e); try { window.location.href = '/signin' } catch (err) { console.warn('Fallback redirect failed', err) } }
   }
 
   const messageColor = message?.type === 'error' ? '#ff8080' : message?.type === 'success' ? 'var(--color-neon)' : 'var(--color-gray)'

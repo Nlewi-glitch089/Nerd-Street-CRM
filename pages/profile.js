@@ -95,10 +95,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div style={{marginTop:18, padding:18, border:'1px solid rgba(255,255,255,0.03)', borderRadius:8}}>
-        <div style={{fontWeight:700, color:'var(--color-neon)', marginBottom:8}}>Recent activity</div>
-        <RecentActivityList />
-      </div>
+      {/* Recent activity removed from Profile — team dashboard shows activity instead */}
     </div>
   )
 }
@@ -233,6 +230,23 @@ function RequestAccessForm({ userEmail }){
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
+  const [existing, setExisting] = useState(null)
+
+  useEffect(()=>{
+    let mounted = true
+    if (!userEmail) return
+    ;(async()=>{
+      try{
+        const res = await fetch(`/api/admin/request-access?email=${encodeURIComponent(userEmail)}`)
+        if (!res.ok) return
+        const d = await res.json().catch(()=>null)
+        if (mounted && d && d.requests && d.requests.length) {
+          setExisting(d.requests[0])
+        }
+      }catch(e){}
+    })()
+    return ()=>{ mounted = false }
+  },[userEmail])
 
   async function submit(e){
     e && e.preventDefault && e.preventDefault()
@@ -244,6 +258,8 @@ function RequestAccessForm({ userEmail }){
       const d = await res.json().catch(()=>null)
       if (!res.ok) throw new Error(d?.error || 'Request failed')
       setMessage({ type: 'success', text: d?.message || 'Request sent' })
+      // reflect created request in UI
+      if (d?.request) setExisting(d.request)
       setOpen(false)
       setNote('')
     }catch(err){ setMessage({ type:'error', text: String(err.message || err) }) }
@@ -274,6 +290,14 @@ function RequestAccessForm({ userEmail }){
         </form>
       )}
       {message && <div style={{marginTop:8,color: message.type === 'error' ? '#ff8080' : 'var(--color-neon)'}}>{message.text}</div>}
+      {existing && (
+        <div style={{marginTop:10, padding:10, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6}}>
+          <div style={{fontSize:13, fontWeight:700}}>Latest request</div>
+          <div style={{fontSize:13, color:'#bbb'}}>Status: <span style={{color: existing.status === 'PENDING' ? '#ffb86b' : 'var(--color-neon)'}}>{existing.status}</span></div>
+          <div style={{fontSize:12, color:'#999', marginTop:6}}>Submitted: {existing.createdAt ? new Date(existing.createdAt).toLocaleString() : ''}</div>
+          <div style={{fontSize:12, color:'#999'}}>Admins typically review requests within 24 hours.</div>
+        </div>
+      )}
     </div>
   )
 }
