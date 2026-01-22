@@ -61,8 +61,11 @@ export default async function handler(req, res) {
                 donor = await prisma.donor.create({ data: { firstName: 'Demo', lastName: 'Donor', email: DEMO_EMAIL, totalGiving: 0 } })
               }
               const delta = desired - current
-              await prisma.donation.create({ data: { donorId: donor.id, amount: delta, campaignId: s.id, method: 'demo', notes: 'Demo override donation' } })
-              try { await prisma.donor.update({ where: { id: donor.id }, data: { totalGiving: (donor.totalGiving || 0) + delta, lastGiftAt: new Date() } }) } catch (e) { console.warn('Failed updating donor totals', e) }
+              // backdate demo donations so they can be considered "inactive" by the 30+ day filter
+              const DAYS_BACK = 35
+              const demoDate = new Date(Date.now() - (DAYS_BACK * 24 * 60 * 60 * 1000))
+              await prisma.donation.create({ data: { donorId: donor.id, amount: delta, campaignId: s.id, date: demoDate, method: 'demo', notes: 'Demo override donation' } })
+              try { await prisma.donor.update({ where: { id: donor.id }, data: { totalGiving: (donor.totalGiving || 0) + delta, lastGiftAt: demoDate } }) } catch (e) { console.warn('Failed updating donor totals', e) }
               s.raised = desired
             } catch (e) {
               console.warn('Failed to persist demo donation for', s.name, e)

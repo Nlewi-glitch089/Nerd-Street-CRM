@@ -106,13 +106,17 @@ export default async function handler(req, res) {
     const campaignHoliday = campaignsByName['Holiday Giving Drive 2025']
 
     // create sample donors
+    // helper for relative dates so seeded data can be consistent across runs
+    const now = Date.now()
+    const days = (n) => new Date(now - (n * 24 * 60 * 60 * 1000))
+
     let donor1
     try {
       phase = 'upsert-donor1'
       donor1 = await prisma.donor.upsert({
       where: { email: 'nate.marshall@example.com' },
       update: {},
-      create: { firstName: 'Nate', lastName: 'Marshall', email: 'nate.marshall@example.com', totalGiving: 12500, lastGiftAt: new Date('2025-03-03') }
+      create: { firstName: 'Nate', lastName: 'Marshall', email: 'nate.marshall@example.com', totalGiving: 12500, lastGiftAt: days(10) }
     })
     } catch (e) { console.error('Failed to upsert donor1', e); throw e }
 
@@ -122,20 +126,23 @@ export default async function handler(req, res) {
       donor2 = await prisma.donor.upsert({
       where: { email: 'evelyn.hart@example.com' },
       update: {},
-      create: { firstName: 'Evelyn', lastName: 'Hart', email: 'evelyn.hart@example.com', totalGiving: 4200, lastGiftAt: new Date('2025-01-12') }
+      create: { firstName: 'Evelyn', lastName: 'Hart', email: 'evelyn.hart@example.com', totalGiving: 4200, lastGiftAt: days(5) }
     })
     } catch (e) { console.error('Failed to upsert donor2', e); throw e }
 
     // create additional sample donors (to ensure /admin/donors shows a fuller list)
+    const now = Date.now()
+    // Set lastGiftAt so a few donors are older than 30 days (inactive) and the rest recent
+    const days = (n) => new Date(now - (n * 24 * 60 * 60 * 1000))
     const extraDonorsData = [
-      { firstName: 'Ava', lastName: 'Chen', email: 'ava.chen@example.com', totalGiving: 1200, lastGiftAt: new Date('2025-11-01') },
-      { firstName: 'Liam', lastName: 'Smith', email: 'liam.smith@example.com', totalGiving: 500, lastGiftAt: new Date('2025-09-18') },
-      { firstName: 'Olivia', lastName: 'Garcia', email: 'olivia.garcia@example.com', totalGiving: 300, lastGiftAt: new Date('2025-08-10') },
-      { firstName: 'Noah', lastName: 'Johnson', email: 'noah.johnson@example.com', totalGiving: 0, lastGiftAt: null },
-      { firstName: 'Sophia', lastName: 'Martinez', email: 'sophia.martinez@example.com', totalGiving: 750, lastGiftAt: new Date('2025-07-04') },
-      { firstName: 'Mason', lastName: 'Brown', email: 'mason.brown@example.com', totalGiving: 2500, lastGiftAt: new Date('2025-06-21') },
-      { firstName: 'Isabella', lastName: 'Davis', email: 'isabella.davis@example.com', totalGiving: 0, lastGiftAt: null },
-      { firstName: 'Ethan', lastName: 'Wilson', email: 'ethan.wilson@example.com', totalGiving: 1500, lastGiftAt: new Date('2025-05-30') }
+      { firstName: 'Ava', lastName: 'Chen', email: 'ava.chen@example.com', totalGiving: 1200, lastGiftAt: days(5) },    // active
+      { firstName: 'Liam', lastName: 'Smith', email: 'liam.smith@example.com', totalGiving: 500, lastGiftAt: days(10) },  // active
+      { firstName: 'Olivia', lastName: 'Garcia', email: 'olivia.garcia@example.com', totalGiving: 300, lastGiftAt: days(15) }, // active
+      { firstName: 'Noah', lastName: 'Johnson', email: 'noah.johnson@example.com', totalGiving: 0, lastGiftAt: null },     // no gifts
+      { firstName: 'Sophia', lastName: 'Martinez', email: 'sophia.martinez@example.com', totalGiving: 750, lastGiftAt: days(35) }, // inactive (35d)
+      { firstName: 'Mason', lastName: 'Brown', email: 'mason.brown@example.com', totalGiving: 2500, lastGiftAt: days(60) }, // inactive (60d)
+      { firstName: 'Isabella', lastName: 'Davis', email: 'isabella.davis@example.com', totalGiving: 0, lastGiftAt: null }, // no gifts
+      { firstName: 'Ethan', lastName: 'Wilson', email: 'ethan.wilson@example.com', totalGiving: 1500, lastGiftAt: days(7) } // active
     ]
     const extraDonors = []
     for (const d of extraDonorsData) {

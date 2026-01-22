@@ -39,11 +39,82 @@ export default async function handler(req, res) {
       }
     })
 
+    // Seed lightweight, randomized demo/team data for this new user
+    try {
+      await seedDemoForNewUser(prisma, user)
+    } catch (seedErr) {
+      console.warn('Failed to seed demo data for new user', seedErr)
+    }
+
     return res.status(201).json({ ok: true, id: user.id })
   } catch (err) {
     // Prisma unique constraint error handling
     console.error('signup handler error', err)
     const message = err?.meta?.target ? `A record already exists for: ${err.meta.target}` : (err && err.message) || String(err)
     return res.status(500).json({ error: message })
+  }
+}
+
+async function seedDemoForNewUser(prisma, user) {
+  if (!prisma || !user) return
+  const now = Date.now()
+  const days = (n) => new Date(now - n * 24 * 60 * 60 * 1000)
+  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)]
+
+  // simple randomized donors tied to this demo user (emails include user id to avoid collisions)
+  const demoSuffix = (user.id || '').slice(0, 8)
+  const demoDonors = [
+    { firstName: 'Alex', lastName: 'Reyes' },
+    { firstName: 'Jordan', lastName: 'Kim' },
+    { firstName: 'Taylor', lastName: 'Bishop' }
+  ].map((d, i) => ({ ...d, email: `demo+${demoSuffix}+${i}@example.com` }))
+
+  const createdDonors = []
+  for (const d of demoDonors) {
+    try {
+      const created = await prisma.donor.create({ data: { firstName: d.firstName, lastName: d.lastName, email: d.email, totalGiving: Math.floor(Math.random() * 5000), lastGiftAt: rand([days(5), days(10), days(35), null]) } })
+      createdDonors.push(created)
+    } catch (e) {
+      console.warn('seedDemo: failed to create donor', d.email, e)
+    }
+  }
+
+  // create a couple of lightweight campaigns/events to vary the dashboard
+  const campNames = [
+    `Local Outreach ${demoSuffix}`,
+    `Community Drive ${demoSuffix}`
+  ]
+  for (const name of campNames) {
+    try {
+      await prisma.campaigns.create({ data: { name, goal: 10000 + Math.floor(Math.random() * 50000), approved: Math.random() > 0.5 } })
+    } catch (e) {
+      // ignore collisions
+    }
+  }
+
+  try {
+    await prisma.event.create({ data: { title: `Intro Meeting - ${user.name}`, description: 'Welcome meeting and team intro', startAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } })
+  } catch (e) {}
+
+  // create a few tasks either tied to a demo donor or general team tasks
+  const taskTitles = [
+    'Follow up on sponsorship lead',
+    'Prepare outreach email',
+    'Update donor CRM records'
+  ]
+  for (let i = 0; i < 4; i++) {
+    try {
+      const donor = createdDonors.length ? rand(createdDonors) : null
+      await prisma.task.create({ data: { donorId: donor ? donor.id : null, title: rand(taskTitles), notes: 'Auto-generated demo task', dueAt: new Date(Date.now() + (i + 2) * 24 * 60 * 60 * 1000) } })
+    } catch (e) {
+      console.warn('seedDemo: failed to create task', e)
+    }
+  }
+
+  // record an ActionLog entry to indicate demo seeding (useful for auditing)
+  try {
+    await prisma.actionLog.create({ data: { action: 'SEED_DEMO_DATA', targetType: 'User', targetId: user.id, userId: user.id, actorName: user.name || user.email, meta: { seededAt: new Date().toISOString() } } })
+  } catch (e) {
+    // non-fatal
   }
 }
