@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   if (!ok) return res.status(403).json({ error: 'Password incorrect' })
 
   try {
-    const campaigns = await prisma.campaign.findMany({ include: { donations: true } })
+    const campaigns = await prisma.campaigns.findMany({ select: { id: true, name: true, donations: { select: { id: true, amount: true, date: true, donorId: true } } } })
     const groups = campaigns.reduce((acc, c) => { acc[c.name] = acc[c.name] || []; acc[c.name].push(c); return acc }, {})
     const summary = []
     for (const name of Object.keys(groups)) {
@@ -38,8 +38,7 @@ export default async function handler(req, res) {
         // move donations to keeper
         const upd = await prisma.donation.updateMany({ where: { campaignId: dup.id }, data: { campaignId: keeper.id } })
         movedDonations += upd.count || 0
-        // delete duplicate campaign
-        await prisma.campaign.delete({ where: { id: dup.id } })
+          await prisma.campaigns.delete({ where: { id: dup.id } })
       }
       summary.push({ name, keptId: keeper.id, removedIds: removed.map(r=>r.id), movedDonations })
     }

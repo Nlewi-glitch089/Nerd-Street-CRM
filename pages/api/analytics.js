@@ -89,7 +89,7 @@ export default async function handler(req, res) {
         const gifted = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         return { id: c.id, name: c.name, goal: c.goal, raised, gifted }
       })
-      const freshDonors = await prisma.donor.findMany({ include: { donations: true } })
+      const freshDonors = await prisma.donor.findMany({ select: { id: true, firstName: true, lastName: true, email: true, lastGiftAt: true, donations: { select: { id: true, amount: true, date: true, method: true, notes: true, campaignId: true } } } })
       const donorStats = freshDonors.map(d => {
         const totalGiving = d.donations.reduce((s,x)=>s + (Number(x.amount||0) || 0), 0)
         const giftedTotal = d.donations.filter(isGift).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0)
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ totalDonors: freshTotalDonors, totalRevenue: freshTotalRevenue, campaignStats, donorStats })
     } catch (e) {
       console.warn('Failed to recompute analytics after persistence', e)
-      const donors = await prisma.donor.findMany({ include: { donations: true } })
+      const donors = await prisma.donor.findMany({ select: { id: true, firstName: true, lastName: true, email: true, lastGiftAt: true, donations: { select: { id: true, amount: true, date: true, method: true, notes: true, campaignId: true } } } })
       const donorStats = donors.map(d => {
         const totalGiving = d.donations.reduce((s,x)=>s + (Number(x.amount||0) || 0), 0)
         const giftedTotal = d.donations.filter(isGift).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0)

@@ -20,13 +20,25 @@ export default async function handler(req, res) {
       // Exclude donations from inactive/soft-deleted donors so preview reflects deletions
       const allDonations = await prisma.donation.findMany({ where: { donor: { active: true } } })
       const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
+      const campaignsWithDonations = await prisma.campaigns.findMany({
+        select: {
+          id: true,
+          name: true,
+          goal: true,
+          approved: true,
+          active: true,
+          createdAt: true,
+          donations: { where: { donor: { active: true } }, select: { id: true, amount: true, date: true, donorId: true, method: true, notes: true } }
+        }
+      })
       const campaignStats = campaignsWithDonations.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         return { id: c.id, name: c.name, goal: c.goal, raised, gifted }
       })
-      const donorsWithDonations = await prisma.donor.findMany({ include: { donations: true } })
+      const donorsWithDonations = await prisma.donor.findMany({
+        select: { id: true, firstName: true, lastName: true, email: true, lastGiftAt: true, donations: { select: { id: true, amount: true, date: true, method: true, notes: true, campaignId: true } } }
+      })
       const donorStats = donorsWithDonations.map(d => ({ id: d.id, name: `${d.firstName} ${d.lastName||''}`.trim(), email: d.email, totalGiving: d.donations.reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), giftedTotal: d.donations.filter(dd=>{ try{ const m=String(dd.method||'').toLowerCase(); const n=String(dd.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) }catch(e){return false} }).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), gifts: d.donations.length, lastGiftAt: d.lastGiftAt }))
 
       const metricsPayload = [
@@ -131,9 +143,7 @@ export default async function handler(req, res) {
     } catch (e) { console.error('Failed to upsert donor2', e); throw e }
 
     // create additional sample donors (to ensure /admin/donors shows a fuller list)
-    const now = Date.now()
-    // Set lastGiftAt so a few donors are older than 30 days (inactive) and the rest recent
-    const days = (n) => new Date(now - (n * 24 * 60 * 60 * 1000))
+    // reuse `days` helper defined earlier above
     const extraDonorsData = [
       { firstName: 'Ava', lastName: 'Chen', email: 'ava.chen@example.com', totalGiving: 1200, lastGiftAt: days(5) },    // active
       { firstName: 'Liam', lastName: 'Smith', email: 'liam.smith@example.com', totalGiving: 500, lastGiftAt: days(10) },  // active
@@ -279,13 +289,25 @@ export default async function handler(req, res) {
       const totalDonors = await prisma.donor.count()
       const allDonations = await prisma.donation.findMany()
       const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: true } })
+      const campaignsWithDonations = await prisma.campaigns.findMany({
+        select: {
+          id: true,
+          name: true,
+          goal: true,
+          approved: true,
+          active: true,
+          createdAt: true,
+          donations: { select: { id: true, amount: true, date: true, donorId: true, method: true, notes: true } }
+        }
+      })
       const campaignStats = campaignsWithDonations.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         return { id: c.id, name: c.name, goal: c.goal, raised, gifted }
       })
-      const donorsWithDonations = await prisma.donor.findMany({ include: { donations: true } })
+      const donorsWithDonations = await prisma.donor.findMany({
+        select: { id: true, firstName: true, lastName: true, email: true, lastGiftAt: true, donations: { select: { id: true, amount: true, date: true, method: true, notes: true, campaignId: true } } }
+      })
       const donorStats = donorsWithDonations.map(d => ({ id: d.id, name: `${d.firstName} ${d.lastName||''}`.trim(), email: d.email, totalGiving: d.donations.reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), giftedTotal: d.donations.filter(dd=>{ try{ const m=String(dd.method||'').toLowerCase(); const n=String(dd.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) }catch(e){return false} }).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0), gifts: d.donations.length, lastGiftAt: d.lastGiftAt }))
     // Prepare response payload (UI partners are still client-only)
     // build metrics payload derived from the DB so UI shows accurate totals

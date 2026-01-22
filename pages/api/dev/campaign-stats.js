@@ -27,7 +27,9 @@ export default async function handler(req, res) {
   try {
     // basic aggregates
     const campaignCount = await prisma.campaigns.count()
-    const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
+    const campaigns = await prisma.campaigns.findMany({
+      select: { id: true, name: true, goal: true, approved: true, active: true, donations: { select: { id: true, amount: true, date: true, donorId: true } } }
+    })
 
     const campaignStats = campaigns.map(c => {
       const raised = Array.isArray(c.donations) ? c.donations.reduce((s, d) => s + (Number(d.amount || 0) || 0), 0) : 0
@@ -38,7 +40,7 @@ export default async function handler(req, res) {
     const totalRevenue = donations.reduce((s, d) => s + (Number(d.amount || 0) || 0), 0)
     const donationCount = await prisma.donation.count()
 
-    const donors = await prisma.donor.findMany({ include: { donations: true }, take: 500 })
+    const donors = await prisma.donor.findMany({ select: { id: true, firstName: true, lastName: true, email: true, donations: { select: { id: true, amount: true, date: true, campaignId: true } } }, take: 500 })
     const donorCount = await prisma.donor.count()
 
     return res.status(200).json({ ok: true, campaignCount, donationCount, donorCount, totalRevenue, campaignStats, sampleDonations: donations.slice(0, 50), sampleDonors: donors.slice(0, 50) })

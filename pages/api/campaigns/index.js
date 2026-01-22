@@ -28,7 +28,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
   try {
     console.debug('Campaigns: prisma model types:', { campaigns: typeof prisma.campaigns, donation: typeof prisma.donation })
-    const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
+    const campaigns = await prisma.campaigns.findMany({
+      select: { id: true, name: true, goal: true, approved: true, active: true, donations: { select: { id: true, amount: true, date: true, donorId: true, method: true, notes: true } } }
+    })
     // helper to detect gift-like donations (notes may include 'gift' or similar)
     const isGift = (d) => {
       try {
@@ -90,7 +92,9 @@ export default async function handler(req, res) {
 
     // After persistence, re-fetch fresh campaign data so returned totals reflect persisted donations
     try {
-      const fresh = await prisma.campaigns.findMany({ include: { donations: true } })
+      const fresh = await prisma.campaigns.findMany({
+        select: { id: true, name: true, goal: true, approved: true, active: true, donations: { select: { id: true, amount: true, date: true, donorId: true, method: true, notes: true } } }
+      })
       const freshList = fresh.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const giftedRaised = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
