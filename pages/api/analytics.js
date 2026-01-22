@@ -29,7 +29,8 @@ export default async function handler(req, res) {
 
     // per-campaign totals
     // include only donations tied to active donors
-    const campaigns = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
+    // Only select the fields we need to avoid selecting DB columns that might be missing
+    const campaigns = await prisma.campaigns.findMany({ select: { id: true, name: true, goal: true, donations: { where: { donor: { active: true } }, select: { amount: true, method: true, notes: true } } } })
 
     let campaignStats = campaigns.map(c => {
 
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
     try {
       const freshDonations = await prisma.donation.findMany({ where: { donor: { active: true } } })
       const freshTotalRevenue = freshDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const freshCampaigns = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
+      const freshCampaigns = await prisma.campaigns.findMany({ select: { id: true, name: true, goal: true, donations: { where: { donor: { active: true } }, select: { amount: true, method: true, notes: true } } } })
       campaignStats = freshCampaigns.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
