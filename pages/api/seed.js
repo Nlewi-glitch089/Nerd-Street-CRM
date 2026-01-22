@@ -148,7 +148,7 @@ export default async function handler(req, res) {
       { firstName: 'Ava', lastName: 'Chen', email: 'ava.chen@example.com', totalGiving: 1200, lastGiftAt: days(5) },    // active
       { firstName: 'Liam', lastName: 'Smith', email: 'liam.smith@example.com', totalGiving: 500, lastGiftAt: days(10) },  // active
       { firstName: 'Olivia', lastName: 'Garcia', email: 'olivia.garcia@example.com', totalGiving: 300, lastGiftAt: days(15) }, // active
-      { firstName: 'Noah', lastName: 'Johnson', email: 'noah.johnson@example.com', totalGiving: 0, lastGiftAt: null },     // no gifts
+      { firstName: 'Noah', lastName: 'Johnson', email: 'noah.johnson@example.com', totalGiving: 0, lastGiftAt: days(2) },     // active (was no gifts)
       { firstName: 'Sophia', lastName: 'Martinez', email: 'sophia.martinez@example.com', totalGiving: 750, lastGiftAt: days(35) }, // inactive (35d)
       { firstName: 'Mason', lastName: 'Brown', email: 'mason.brown@example.com', totalGiving: 2500, lastGiftAt: days(60) }, // inactive (60d)
       { firstName: 'Isabella', lastName: 'Davis', email: 'isabella.davis@example.com', totalGiving: 0, lastGiftAt: null }, // no gifts
