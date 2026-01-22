@@ -11,7 +11,7 @@ export default function Why() {
 
         <div className="card problem-card">
           <h4 style={{color:'var(--color-neon)'}}>Key Features and Why They Were Chosen</h4>
-          <ul style={{marginTop:8, color:'#d0d0d0'}}>
+          <ul className="evidence-list" style={{marginTop:8}}>
             <li><strong>Donor & Donation Records</strong> — Primary entities for fundraising workflows—essential to track who gives, how much, and when.</li>
             <li><strong>Dashboard Summaries</strong> — Quick health checks for teams with limited time—at a glance totals, revenue, and engagement trends.</li>
             <li><strong>AI Insights</strong> — Planning assistance that suggests targeted actions (e.g., outreach cadence, risk flagging) rather than generic summaries.</li>
@@ -27,7 +27,7 @@ export default function Why() {
         <div className="card problem-card">
           <h4 style={{color:'var(--color-neon)'}}>High-Level System Summary</h4>
           <div style={{marginTop:8}}>
-            <p style={{color:'#d0d0d0', margin:0}}>Pages: Public landing pages (Home, Problem, Why This CRM, AI Policy) guide users before login. Authenticated pages (Dashboard, Donors, Donations, Admin) power the CRM after login.</p>
+            <p style={{color:'#d0d0d0', margin:0}}>Pages: Public landing pages (Home, Problem, Why This CRM) guide users before login. Authenticated pages (Dashboard, Donors, Donations, Campaigns, Admin) power the CRM after login.</p>
             <p style={{color:'#d0d0d0', margin:'8px 0 0 0'}}>Data Flow: Database stores donors and donations. API routes protect sensitive operations. AI features call a dedicated AI API that uses aggregated, anonymized activity data to return suggested actions rather than raw donor details.</p>
             <p style={{color:'#d0d0d0', margin:'8px 0 0 0'}}>AI Integration: All AI features call a dedicated route that applies privacy-first prompting. Suggestions are advisory, logged, and reviewed by admins before outreach.</p>
           </div>

@@ -25,6 +25,7 @@ export default function AdminDonors() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [hideInactive, setHideInactive] = useState(false)
   const [donationForm, setDonationForm] = useState({ amount:'', campaignId:'', method:'CASH', methodDetail:'', notes:'' })
   const [previewDonor, setPreviewDonor] = useState(null) // { donor, totalGiving, giftedTotal, gifts, lastGiftAt }
   const [fullDonor, setFullDonor] = useState(null) // full donor with donations for client-side view
@@ -190,7 +191,8 @@ export default function AdminDonors() {
       try {
         setSearchLoading(true)
         const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-        const res = await fetch('/api/donors?q=' + encodeURIComponent(searchTerm) + '&page=1&pageSize=' + encodeURIComponent(pageSize), { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+        const excludeParam = hideInactive ? '&excludeInactiveDays=30' : ''
+        const res = await fetch('/api/donors?q=' + encodeURIComponent(searchTerm) + '&page=1&pageSize=' + encodeURIComponent(pageSize) + excludeParam, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
         if (!res.ok) {
           console.warn('Search /api/donors failed', res.status)
           return
@@ -205,14 +207,15 @@ export default function AdminDonors() {
       finally { if (mounted) setSearchLoading(false) }
     }, 300)
     return () => { mounted = false; clearTimeout(handle) }
-  }, [searchTerm])
+  }, [searchTerm, hideInactive, pageSize])
 
   async function loadDonors(pageArg, pageSizeArg){
     try{
       const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
       const usePage = (typeof pageArg === 'number' && pageArg >= 1) ? pageArg : page
       const usePageSize = (typeof pageSizeArg === 'number' && pageSizeArg > 0) ? pageSizeArg : pageSize
-      const res = await fetch('/api/donors?page=' + encodeURIComponent(usePage) + '&pageSize=' + encodeURIComponent(usePageSize), { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+      const excludeParam = hideInactive ? '&excludeInactiveDays=30' : ''
+      const res = await fetch('/api/donors?page=' + encodeURIComponent(usePage) + '&pageSize=' + encodeURIComponent(usePageSize) + excludeParam, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
       if (!res.ok) return
       const data = await res.json()
       const list = data.donors || []
@@ -365,6 +368,10 @@ export default function AdminDonors() {
               <div style={{fontWeight:700}}>All Donors</div>
               <div style={{width:320, display:'flex', alignItems:'center', gap:8}}>
                 <input className="input" placeholder="Filter by name or email" value={searchTerm} onChange={e=>{ setSearchTerm(e.target.value); setPage(1); }} />
+                <label style={{display:'flex', alignItems:'center', gap:6, marginLeft:6, fontSize:12}}>
+                  <input type="checkbox" checked={hideInactive} onChange={async (e)=>{ setHideInactive(e.target.checked); setPage(1); await loadDonors(1) }} />
+                  <span style={{color:'#bbb'}}>Hide inactive (30+ days)</span>
+                </label>
                 {searchLoading && <div style={{fontSize:12, color:'#9ea'}}>Searching...</div>}
               </div>
             </div>
@@ -377,6 +384,11 @@ export default function AdminDonors() {
                       {d.email} — ${d.totalGiving || 0}
                       { (typeof d.giftedTotal !== 'undefined') && (
                         <span style={{marginLeft:8, color:'#9be'}}>{`(gifts: $${d.giftedTotal})`}</span>
+                      ) }
+                      { typeof d.daysSinceLastDonation !== 'undefined' && (
+                        <span style={{marginLeft:8, fontSize:12, color: (d.daysSinceLastDonation === null || d.daysSinceLastDonation >= 30) ? '#ffb3b3' : '#9ea'}}>
+                          { d.daysSinceLastDonation === null ? 'No gifts' : (d.daysSinceLastDonation >= 30 ? `Inactive: ${d.daysSinceLastDonation}d` : `Last: ${d.daysSinceLastDonation}d`) }
+                        </span>
                       ) }
                     </div>
                   </div>

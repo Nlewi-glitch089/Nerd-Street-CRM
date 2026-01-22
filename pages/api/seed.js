@@ -17,9 +17,10 @@ export default async function handler(req, res) {
       try { await prisma.$connect() } catch (connErr) { console.error('Prisma connection error (GET seed)', connErr); return res.status(500).json({ error: 'Database connection failed', details: String(connErr && connErr.message ? connErr.message : connErr), phase: 'connect-get' }) }
       // Build read-only payload from DB similar to POST's final payload
       const totalDonors = await prisma.donor.count()
-      const allDonations = await prisma.donation.findMany()
+      // Exclude donations from inactive/soft-deleted donors so preview reflects deletions
+      const allDonations = await prisma.donation.findMany({ where: { donor: { active: true } } })
       const totalRevenue = allDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: true } })
+      const campaignsWithDonations = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
       const campaignStats = campaignsWithDonations.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(d=>{ try { const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) } catch(e){return false} }).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)

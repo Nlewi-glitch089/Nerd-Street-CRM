@@ -23,33 +23,40 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const q = (req.query && (req.query.q || req.query.search)) ? String(req.query.q || req.query.search) : null
+      const excludeInactiveDays = req.query && req.query.excludeInactiveDays ? parseInt(String(req.query.excludeInactiveDays), 10) : null
       const page = parseInt(String(req.query.page || '1'), 10) || 1
       const pageSize = Math.min(parseInt(String(req.query.pageSize || '25'), 10) || 25, 200)
       const take = pageSize
       const skip = Math.max(0, (page - 1) * pageSize)
+      let cutoff = null
+      if (typeof excludeInactiveDays === 'number' && !Number.isNaN(excludeInactiveDays) && excludeInactiveDays > 0) {
+        cutoff = new Date(Date.now() - (excludeInactiveDays * 24 * 60 * 60 * 1000))
+      }
       if (q && q.trim() !== '') {
         const qnorm = q.trim()
         const useStarts = qnorm.length === 1
         const build = (field) => useStarts ? { [field]: { startsWith: qnorm, mode: 'insensitive' } } : { [field]: { contains: qnorm, mode: 'insensitive' } }
-        const where = {
-          OR: [
-            build('firstName'),
-            build('lastName'),
-            build('email')
-          ]
+        let where = { OR: [ build('firstName'), build('lastName'), build('email') ] }
+        if (cutoff) {
+          // restrict to donors with lastGiftAt on/after cutoff (null lastGiftAt will be excluded)
+          where = { AND: [ where, { lastGiftAt: { gte: cutoff } } ] }
         }
         const [list, total] = await Promise.all([
-          prisma.donor.findMany({ where, orderBy: { lastGiftAt: 'desc' }, skip, take }),
+          prisma.donor.findMany({ where, orderBy: { lastGiftAt: 'desc' }, skip, take, include: { _count: { select: { donations: true } } } }),
           prisma.donor.count({ where })
         ])
-        const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt }))
+        const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0, daysSinceLastDonation: d.lastGiftAt ? Math.floor((Date.now() - new Date(d.lastGiftAt).getTime()) / (24*60*60*1000)) : null }))
         return res.status(200).json({ donors: out, q: qnorm, page, pageSize, total })
       }
+      let whereAll = undefined
+      if (cutoff) {
+        whereAll = { lastGiftAt: { gte: cutoff } }
+      }
       const [list, total] = await Promise.all([
-        prisma.donor.findMany({ orderBy: { lastGiftAt: 'desc' }, skip, take }),
-        prisma.donor.count()
+        prisma.donor.findMany({ where: whereAll, orderBy: { lastGiftAt: 'desc' }, skip, take, include: { _count: { select: { donations: true } } } }),
+        typeof whereAll !== 'undefined' ? prisma.donor.count({ where: whereAll }) : prisma.donor.count()
       ])
-      const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt }))
+      const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0, daysSinceLastDonation: d.lastGiftAt ? Math.floor((Date.now() - new Date(d.lastGiftAt).getTime()) / (24*60*60*1000)) : null }))
       return res.status(200).json({ donors: out, page, pageSize, total })
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
 
 export default function Team() {
@@ -14,6 +14,16 @@ export default function Team() {
   const [recentActivity, setRecentActivity] = useState([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [signOutMessage, setSignOutMessage] = useState(null)
+  // AI chat follow-ups for team dashboard
+  const [aiChatMessages, setAiChatMessages] = useState([])
+  const [aiQuestion, setAiQuestion] = useState('')
+  const [aiQuestionLoading, setAiQuestionLoading] = useState(false)
+  const [aiGeneratingId, setAiGeneratingId] = useState(null)
+  // floating assistant panel state (draggable, minimizable)
+  const [aiPanelVisible, setAiPanelVisible] = useState(false)
+  const [aiMinimized, setAiMinimized] = useState(false)
+  const [aiPos, setAiPos] = useState({ left: null, top: null })
+  const aiDragRef = useRef({ dragging: false, startX: 0, startY: 0, origLeft: 0, origTop: 0 })
 
   function formatOwnersForDisplay(p) {
     const owners = p.owners || []
@@ -43,6 +53,113 @@ export default function Team() {
     const now = new Date()
     const diff = Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - parsed) / (1000 * 60 * 60 * 24))
     return diff > 0 ? diff : 0
+  }
+
+  async function generateOutreachArtifacts(item, kind = 'task') {
+  function parseOutreach(answer) {
+    if (!answer) return null
+    // Try strict JSON first
+    try {
+      const parsed = JSON.parse(answer)
+      const keys = Object.keys(parsed || {})
+      if (keys.length && (parsed.email || parsed.agenda || parsed.summary || parsed.STATUS_SUMMARY)) {
+        return {
+          email: parsed.email || parsed.EMAIL || parsed.Email || parsed.emailBody || null,
+          agenda: parsed.agenda || parsed.AGENDA || null,
+          summary: parsed.summary || parsed.SUMMARY || parsed['STATUS_SUMMARY'] || null
+        }
+      }
+    } catch (e) {
+      // not JSON — fall through to heading-based parsing
+    }
+
+    const sections = { email: null, agenda: null, summary: null }
+    const regex = /(?:^|\n)\s*(?:#{1,3}\s*)?(EMAIL|AGENDA|STATUS SUMMARY|SUMMARY)\s*(?:[:#-]*)\s*\n([\s\S]*?)(?=(?:\n\s*(?:#{1,3}\s*)?(?:EMAIL|AGENDA|STATUS SUMMARY|SUMMARY)\b)|$)/ig
+    let m
+    while ((m = regex.exec(answer)) !== null) {
+      const key = (m[1] || '').toLowerCase()
+      const body = (m[2] || '').trim()
+      if (key.includes('email')) sections.email = body
+      else if (key.includes('agenda')) sections.agenda = body
+      else if (key.includes('status') || key.includes('summary')) sections.summary = body
+    }
+    // If no headings matched, try simple labeled splits like "EMAIL:" etc.
+    if (!sections.email && !sections.agenda && !sections.summary) {
+      const simpleRegex = /(EMAIL|AGENDA|STATUS SUMMARY|SUMMARY)\s*[:\-]*\s*([\s\S]*)/i
+      const sim = answer.match(simpleRegex)
+      if (sim) {
+        // fallback: place whole answer in summary
+        sections.summary = answer.trim()
+      }
+    }
+    return sections
+  }
+
+  async function handleOutreachFromChat(q) {
+    // try to find a referenced item in current context
+    const qLower = (q || '').toLowerCase()
+    let found = null
+    let kind = 'task'
+    if (tasks && tasks.length) {
+      found = tasks.find(t => (t.title || '').toLowerCase().includes(qLower) || qLower.includes((t.title || '').toLowerCase().split(' ')[0]))
+      if (found) kind = 'task'
+    }
+    if (!found && followUps && followUps.length) {
+      found = followUps.find(f => (f.name || '').toLowerCase().includes(qLower) || qLower.includes((f.name || '').toLowerCase().split(' ')[0]))
+      if (found) kind = 'followup'
+    }
+    if (!found && partners && partners.length) {
+      found = partners.find(p => (p.name || '').toLowerCase().includes(qLower) || qLower.includes((p.name || '').toLowerCase().split(' ')[0]))
+      if (found) kind = 'partner'
+    }
+
+    if (found) {
+      await generateOutreachArtifacts(found, kind)
+      return
+    }
+
+    // no explicit item found — generate freeform outreach using the user's query as the subject
+    await generateOutreachArtifacts({ id: `free-${Date.now()}`, name: q, note: q }, 'task')
+  }
+
+    try {
+      setAiGeneratingId(item.id || (item.name || '').slice(0,8))
+      const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+      const today = new Date().toISOString().slice(0,10)
+      const short = kind === 'task' ? (item.title || item.name || '') : (item.name || '')
+      const prompt = `Date: ${today}\n\nYou are an assistant helping a nonprofit team re-engage an overdue partner/task. Create three artifacts for the following overdue item:\n\nItem: ${short}\nDetails: ${JSON.stringify(item).slice(0,1000)}\n\nReturn the output with clear headings (### EMAIL ###, ### AGENDA ###, ### STATUS SUMMARY ###).\n1) EMAIL: Provide a concise subject line and a friendly, professional email body to the client requesting a short check-in to resolve outstanding issues.\n2) AGENDA: Provide a 20-minute meeting agenda with timings and objectives.\n3) STATUS SUMMARY: Provide a one-page status summary (3-6 bullet points) with current status, outstanding issues, owners, and next steps. Be concise and action-oriented.`
+
+      const res = await fetch('/api/team/ai-question', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ question: prompt, context: { item, user } }) })
+      const data = await res.json().catch(()=>null)
+      if (!res.ok) {
+        const msg = data?.message || data?.error || 'AI request failed'
+        setAiChatMessages(m => [...m, { role: 'assistant', text: `Could not generate outreach artifacts: ${msg}` }])
+      } else {
+        const answer = (data && (data.answer || data)) || '[No answer]'
+        // Try to parse the answer into Email / Agenda / Summary sections
+        const parsed = typeof answer === 'string' ? parseOutreach(answer) : null
+        if (parsed && (parsed.email || parsed.agenda || parsed.summary)) {
+          const cards = []
+          if (parsed.email) cards.push({ role: 'assistant', type: 'card', cardType: 'email', title: 'Email', content: parsed.email.trim() })
+          if (parsed.agenda) cards.push({ role: 'assistant', type: 'card', cardType: 'agenda', title: 'Agenda', content: parsed.agenda.trim() })
+          if (parsed.summary) cards.push({ role: 'assistant', type: 'card', cardType: 'summary', title: 'Status Summary', content: parsed.summary.trim() })
+          if (cards.length) {
+            setAiChatMessages(m => [...m, ...cards])
+          } else {
+            setAiChatMessages(m => [...m, { role: 'assistant', text: `Generated outreach artifacts for "${short}":\n\n${String(answer)}` }])
+          }
+        } else {
+          setAiChatMessages(m => [...m, { role: 'assistant', text: `Generated outreach artifacts for "${short}":\n\n${String(answer)}` }])
+        }
+        // open the assistant panel so user sees result
+        setAiPanelVisible(true)
+        setAiMinimized(false)
+      }
+    } catch (err) {
+      setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error generating artifacts: ' + String(err) }])
+    } finally {
+      setAiGeneratingId(null)
+    }
   }
 
   // human-friendly timestamp + relative time
@@ -136,6 +253,25 @@ export default function Team() {
     return () => { mounted = false }
   }, [])
 
+  // attach global listeners for dragging the AI panel
+  useEffect(() => {
+    function onMove(e) {
+      if (!aiDragRef.current.dragging) return
+      const dx = e.clientX - aiDragRef.current.startX
+      const dy = e.clientY - aiDragRef.current.startY
+      const left = Math.max(8, aiDragRef.current.origLeft + dx)
+      const top = Math.max(8, aiDragRef.current.origTop + dy)
+      setAiPos({ left, top })
+    }
+    function onUp() { aiDragRef.current.dragging = false }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [])
+
   function localSeed() {
     // local fallback that mirrors the admin-seed content (non-personal)
     setTasks([
@@ -166,9 +302,11 @@ export default function Team() {
         <div style={{color:'var(--color-neon)', marginTop:14, fontSize:16}}>Loading dashboard...</div>
       </div>
       <style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-    </div>
-  )
-  if (error) return <div style={{padding:20, color:'red'}}>{error}</div>
+      </div>
+    )
+
+
+      if (error) return <div style={{padding:20, color:'red'}}>{error}</div>
 
   return (
     <div style={{padding:18}}>
@@ -272,7 +410,9 @@ export default function Team() {
               <div key={t.id} style={{padding:12, border: overdue ? '1px solid rgba(255,77,79,0.18)' : '1px solid rgba(255,255,255,0.03)', borderRadius:6, marginBottom:8, background: overdue ? 'rgba(255,77,79,0.03)' : 'transparent'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                   <div style={{fontWeight:700}}>{t.title}</div>
-                  {overdue && (<div style={{fontSize:12,color:'#ff4d4f',fontWeight:700}}>Overdue · {overdueDays(t.due)}d</div>)}
+                    <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                      {overdue && (<div style={{fontSize:12,color:'#ff4d4f',fontWeight:700}}>Overdue · {overdueDays(t.due)}d</div>)}
+                    </div>
                 </div>
                 <div style={{fontSize:13, color:'#bbb', marginTop:6}}>{t.note}</div>
                 <div style={{fontSize:12, color: overdue ? '#ffb3b3' : '#ffd57a', marginTop:6}}>Due: {t.due}</div>
@@ -364,6 +504,7 @@ export default function Team() {
                     </div>
                     <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:6}}>
                       <div style={{width:10, height:10, borderRadius:10, background:(f.days && f.days > 60) ? '#ff4d4f' : '#ffcc00'}} />
+                      {/* outreach now handled via chat; button removed */}
                       <button className="btn btn-link" onClick={async () => {
                         // Try to link to a campaign detail page first (by name match)
                         try {
@@ -398,6 +539,169 @@ export default function Team() {
                 ))}
               </div>
           </div>
+
+          {/* Assistant floating panel (draggable, minimizable, downloadable) */}
+          {!aiPanelVisible && (
+            <button
+              title="Open Assistant"
+              onClick={() => setAiPanelVisible(true)}
+              style={{position:'fixed', right:20, bottom:20, zIndex:9998, width:52, height:52, borderRadius:26, background:'var(--color-neon)', color:'#000', fontWeight:800, boxShadow:'0 8px 24px rgba(0,0,0,0.4)', border:'none', cursor:'pointer'}}
+            >AI</button>
+          )}
+
+          {aiPanelVisible && (
+              <div
+              role="dialog"
+              aria-label="Team Assistant"
+              style={{
+                position: 'fixed',
+                zIndex: 9999,
+                width: aiMinimized ? 280 : 640,
+                height: aiMinimized ? 48 : 'auto',
+                  left: aiPos.left != null ? aiPos.left : undefined,
+                  top: aiPos.top != null ? aiPos.top : undefined,
+                  right: aiPos.left == null ? 20 : undefined,
+                  bottom: aiPos.top == null ? 20 : undefined,
+                  background: 'var(--color-off-black)',
+                  border: '1px solid rgba(255,255,255,0.04)',
+                padding: aiMinimized ? '6px 10px' : 14,
+                  borderRadius: 8,
+                  boxShadow: '0 8px 40px rgba(0,0,0,0.6)'
+                }}
+            >
+              <div
+                onMouseDown={(e)=>{
+                  aiDragRef.current.dragging = true
+                  aiDragRef.current.startX = e.clientX
+                  aiDragRef.current.startY = e.clientY
+                  // Find the dialog container reliably (works when minimized or DOM changes)
+                  const container = e.currentTarget.closest('[role="dialog"]') || e.currentTarget.parentElement
+                  const rect = container.getBoundingClientRect()
+                  aiDragRef.current.origLeft = rect.left
+                  aiDragRef.current.origTop = rect.top
+                  // Ensure aiPos has initial coordinates so restoring/minimizing doesn't flip anchors
+                  if (aiPos.left == null || aiPos.top == null) {
+                    try { setAiPos({ left: Math.max(8, rect.left), top: Math.max(8, rect.top) }) } catch (err) { /* ignore */ }
+                  }
+                  e.preventDefault()
+                }}
+                style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'grab', overflow: aiMinimized ? 'visible' : 'hidden', background: aiMinimized ? 'var(--color-off-black)' : 'transparent', padding: aiMinimized ? '6px 10px' : 0, borderRadius: aiMinimized ? 6 : 0}}
+              >
+                {!aiMinimized ? (
+                  <>
+                    <div style={{fontWeight:700, color:'var(--color-neon)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: aiMinimized ? 180 : 'unset'}}>Team Assistant</div>
+                    <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                      <button className="btn" onClick={(e)=>{ e.stopPropagation();
+                        const payload = { messages: aiChatMessages, user: user || null }
+                        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `team-assistant-${Date.now()}.json`
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }>Download</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); if (confirm('Clear Assistant chat history? This cannot be undone.')) { setAiChatMessages([]); try { localStorage.removeItem('team_ai_messages') } catch (err) {} } }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }>Clear</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); setAiMinimized(prev => { const next = !prev; if (next) { setAiPos({ left: null, top: null }) } return next }) }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }>{aiMinimized ? 'Restore' : 'Minimize'}</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); setAiPanelVisible(false) }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0 } : {} }>Close</button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%'}}>
+                    <div style={{fontWeight:700, color:'var(--color-neon)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180}}>Team Assistant</div>
+                    <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                      <button
+                        className="btn"
+                        onClick={(e)=>{ e.stopPropagation(); const payload = { messages: aiChatMessages, user: user || null }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `team-assistant-${Date.now()}.json`; a.click(); URL.revokeObjectURL(url); }}
+                        style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0, background: '#171717', color: '#ddd', border: '1px solid rgba(255,255,255,0.06)' } : {} }
+                      >{ aiMinimized ? 'JSON' : 'Download JSON' }</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); setAiMinimized(m => !m) }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0, background: '#171717', color: '#ddd', border: '1px solid rgba(255,255,255,0.06)' } : {} }>{aiMinimized ? 'Restore' : 'Minimize'}</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); if (confirm('Clear Assistant chat history? This cannot be undone.')) { setAiChatMessages([]); try { localStorage.removeItem('team_ai_messages') } catch (err) {} } }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0, background: '#171717', color: '#ddd', border: '1px solid rgba(255,255,255,0.06)' } : {} }>Clear</button>
+                      <button className="btn btn-ghost" onClick={(e)=>{ e.stopPropagation(); setAiPanelVisible(false) }} style={ aiMinimized ? { padding: '6px 8px', fontSize:12, minWidth:0, background: '#171717', color: '#ddd', border: '1px solid rgba(255,255,255,0.06)' } : {} }>Close</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!aiMinimized && (
+                <div style={{marginTop:8, maxHeight:'70vh', overflow:'auto', minWidth:420}}>
+                  <div style={{maxHeight:340, overflow:'auto', padding:12, background:'#070707', borderRadius:8}}>
+                    {aiChatMessages.length === 0 && !aiQuestionLoading ? (
+                      <div style={{color:'#8a8a8a', fontSize:13}}>Ask a question about your dashboard and the assistant will respond.</div>
+                    ) : (
+                      <div>
+                        {aiChatMessages.map((m, idx) => (
+                          <div key={idx} style={{marginBottom:12}}>
+                            {m.type === 'card' ? (
+                              <div style={{border:'1px solid rgba(255,255,255,0.04)', padding:12, borderRadius:8, background:'#071017'}}>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                  <div style={{fontSize:13, color:'#999'}}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
+                                  <div style={{fontWeight:800, color:'var(--color-neon)'}}>{m.title}</div>
+                                </div>
+                                <div style={{marginTop:8, color:'#cfe', fontSize:14, whiteSpace:'pre-wrap', lineHeight:1.6}}>{m.content}</div>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{fontSize:13, color:'#999', marginBottom:6}}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
+                                <div style={{color: m.role === 'user' ? '#fff' : '#cfe', fontSize:15, lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word'}}>{m.text}</div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                        {aiQuestionLoading && (
+                          <div style={{display:'flex', alignItems:'center', gap:8, marginTop:6, color:'#bbb'}}>
+                            <span className="spinner" aria-hidden="true"></span>
+                            <span style={{fontSize:13}}>Assistant is thinking…</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{display:'flex', gap:8, marginTop:10, alignItems:'center'}}>
+                    <input className="input" style={{fontSize:15, padding:'10px 12px'}} value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="Ask a question..." />
+                    <button className={"btn" + (aiQuestionLoading ? ' loading' : '')} style={{padding:'10px 14px'}} onClick={async ()=>{
+                      const q = (aiQuestion||'').trim()
+                      if (!q) return
+                      setAiChatMessages(m => [...m, { role: 'user', text: q }])
+                      setAiQuestion('')
+                      setAiQuestionLoading(true)
+                      try {
+                        // If the user's question looks like an outreach request, route it into the outreach generator
+                        const outreachKeywords = ['outreach','email','agenda','status summary','status','one-page','one page','follow-up','follow up','re-engage','reengage']
+                        const qLower = q.toLowerCase()
+                        const isOutreach = outreachKeywords.some(k => qLower.includes(k))
+                        if (isOutreach) {
+                          await handleOutreachFromChat(q)
+                          return
+                        }
+
+                        const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                        const ctx = { tasks, followUps, partners, recentActivity, user }
+                        const res = await fetch('/api/team/ai-question', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ question: q, context: ctx }) })
+                        const data = await res.json().catch(()=>null)
+                        // friendly handling for quota/key issues
+                        if (!res.ok) {
+                          if (data?.code === 'insufficient_quota') {
+                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant temporarily unavailable — our AI quota is exhausted. Please contact the admin to update billing.' }])
+                          } else if (data?.code === 'invalid_api_key') {
+                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant misconfigured — AI key invalid. Please contact the admin.' }])
+                          } else {
+                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error: ' + (data?.message || data?.error || 'Request failed') }])
+                          }
+                        } else {
+                          setAiChatMessages(m => [...m, { role: 'assistant', text: data?.answer || '[No answer]' }])
+                        }
+                      } catch (err) {
+                        setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error: ' + String(err) }])
+                      } finally {
+                        setAiQuestionLoading(false)
+                      }
+                    }} disabled={aiQuestionLoading}>{aiQuestionLoading ? (<><span className="spinner" style={{marginRight:8}}></span>Thinking…</>) : 'Send'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

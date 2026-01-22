@@ -10,7 +10,9 @@ export default async function handler(req, res) {
   
       const totalDonors = await prisma.donor.count()
 
-    const totalDonations = await prisma.donation.findMany()
+    // exclude donations that belong to inactive / soft-deleted donors so
+    // admin actions that deactivate donors are reflected in analytics
+    const totalDonations = await prisma.donation.findMany({ where: { donor: { active: true } } })
 
     const totalRevenue = totalDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
 
@@ -25,7 +27,8 @@ export default async function handler(req, res) {
     }
 
     // per-campaign totals
-    const campaigns = await prisma.campaigns.findMany({ include: { donations: true } })
+    // include only donations tied to active donors
+    const campaigns = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
 
     let campaignStats = campaigns.map(c => {
 
@@ -73,9 +76,9 @@ export default async function handler(req, res) {
 
     // After possible persistence of demo donations, re-compute totals from DB so analytics reflect persisted records
     try {
-      const freshDonations = await prisma.donation.findMany()
+      const freshDonations = await prisma.donation.findMany({ where: { donor: { active: true } } })
       const freshTotalRevenue = freshDonations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
-      const freshCampaigns = await prisma.campaigns.findMany({ include: { donations: true } })
+      const freshCampaigns = await prisma.campaigns.findMany({ include: { donations: { where: { donor: { active: true } } } } })
       campaignStats = freshCampaigns.map(c => {
         const raised = c.donations.reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)
         const gifted = c.donations.filter(isGift).reduce((s,d)=>s + (Number(d.amount||0) || 0), 0)

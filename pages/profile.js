@@ -60,10 +60,6 @@ export default function Profile() {
         </div>
         <div style={{display:'flex', gap:12}}>
           <button className="btn btn-ghost" onClick={() => { try { router.back() } catch(e){ console.warn('nav failed', e) } }}>Back</button>
-          <button className="btn btn-ghost" onClick={() => {
-            try { localStorage.removeItem('token') } catch(e) { console.warn('removeItem token failed', e) }
-            try { window.location.href = '/' } catch(e) { console.warn('Redirect failed', e) }
-          }}>Sign out</button>
         </div>
       </div>
 

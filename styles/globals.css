@@ -324,19 +324,20 @@ select.input::-ms-expand{ display: none; }
 .evidence-list{ list-style:none; padding-left:0; margin-left:0 }
 .evidence-list li{
   position:relative;
-  padding-left:1.6rem;
-  margin:0.45rem 0;
+  position:relative;
+  padding-left:1.2rem;
+  margin:0.35rem 0;
   color:#d8fbe0;
 }
 .evidence-list li:before{
   content:'';
   position:absolute;
   left:0;
-  top:0.5rem;
-  width:10px;
-  height:10px;
+  top:0.55rem;
+  width:6px;
+  height:6px;
   border-radius:999px;
   background:var(--color-neon);
-  box-shadow: 0 0 12px rgba(var(--color-neon-rgb),0.7), 0 0 6px rgba(var(--color-neon-rgb),0.4);
+  box-shadow: 0 0 8px rgba(var(--color-neon-rgb),0.7), 0 0 4px rgba(var(--color-neon-rgb),0.35);
 }
 .evidence-list a{ text-decoration:underline; text-decoration-color: rgba(47,255,85,0.16) }
