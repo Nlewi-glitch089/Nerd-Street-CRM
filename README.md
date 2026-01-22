@@ -301,3 +301,18 @@ npx vercel --prod --confirm
 	- `OPENAI_API_KEY` — your OpenAI API key (optional; set to enable external AI)
 
 If you want, I can push this README update and trigger a Vercel redeploy for you now.
+
+## Recent updates (Jan 22, 2026)
+
+This release includes several UX, backend, and AI assistant improvements implemented for a more realistic team experience:
+
+- **Live donor search**: donor list search is now live, debounced, and prioritizes "starts-with" matches for name and email.
+- **Donor creation fix**: resolved a server 500 when creating donors by removing unsupported fields and surface clear error messages to the client.
+- **Team Assistant added**: a draggable, minimizable, and downloadable assistant panel on the `Team` dashboard that mirrors admin AI behavior.
+- **Outreach artifacts**: AI-generated Email / Agenda / One-page Summary are produced and shown directly in the assistant chat (no separate outreach buttons).
+- **Chat controls**: added `Clear` chat, download JSON, and improved minimized header contrast so underlying dashboard text doesn't show through.
+- **Analytics accuracy**: analytics now exclude donations from soft-deleted/inactive donors so totals update when donors are deactivated.
+- **Seed data improvements**: demo seed dates adjusted so only a few donors are 30+ days inactive; donations seeding is idempotent to avoid inflation across runs.
+- **Randomized team dashboard for new users**: signup now seeds lightweight, randomized donors, tasks, and campaigns so new accounts look different and more realistic.
+
+If you'd like, I can walk through any of these changes in more detail or revert specific items.
