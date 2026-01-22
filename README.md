@@ -18,6 +18,9 @@ I also improved the AI follow-up chat UI in `pages/admin.js` — increased messa
 
 These changes are committed to the repo so reviewers can see the fixes and notes.
 
+Migration note:
+- Added a SQL migration `prisma/migrations/20260122_add_campaign_dates/migration.sql` to add `startAt` and `endAt` columns to the `Campaigns` table. The migration was applied directly to the database and the Prisma client was regenerated. See PR for details.
+
 ## Core Screens (MVP)
 
 These screens are required and form the foundation of the application.

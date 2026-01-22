@@ -10,11 +10,14 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const c = await prisma.campaigns.findUnique({ where: { id: String(id) }, include: { donations: true } })
+      const c = await prisma.campaigns.findUnique({
+        where: { id: String(id) },
+        select: { id: true, name: true, goal: true, approved: true, active: true, donations: { select: { id: true, amount: true, date: true, donorId: true, method: true, notes: true } } }
+      })
       if (!c) return res.status(404).json({ error: 'Campaign not found' })
       const raised = (c.donations || []).reduce((s,d)=> s + (Number(d.amount||0)||0), 0)
       const giftedRaised = (c.donations || []).filter(d=>{ try{ const m=String(d.method||'').toLowerCase(); const n=String(d.notes||'').toLowerCase(); return /gift/.test(m)||/gift/.test(n) }catch(e){return false} }).reduce((s,d)=> s + (Number(d.amount||0)||0), 0)
-      return res.status(200).json({ campaign: { id: c.id, name: c.name, goal: c.goal, startAt: c.startAt || null, endAt: c.endAt || null, raised, giftedRaised, approved: !!c.approved, active: c.active } })
+      return res.status(200).json({ campaign: { id: c.id, name: c.name, goal: c.goal, startAt: null, endAt: null, raised, giftedRaised, approved: !!c.approved, active: c.active } })
     }
 
     // require admin for updates and deletes

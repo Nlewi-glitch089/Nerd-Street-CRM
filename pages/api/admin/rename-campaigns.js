@@ -43,11 +43,11 @@ export default async function handler(req, res) {
         const newName = String(r.newName || '').trim()
         if (!oldName || !newName) { results.push({ oldName, newName, error: 'Invalid names' }); continue }
 
-        const group = await prisma.campaign.findMany({ where: { name: oldName }, include: { donations: true } })
+        const group = await prisma.campaigns.findMany({ where: { name: oldName }, select: { id: true, name: true, donations: { select: { id: true, amount: true, date: true, donorId: true } } } })
         if (!group || group.length === 0) { results.push({ oldName, newName, note: 'No campaigns found with that oldName' }); continue }
 
         // If a campaign with newName already exists, we'll merge into that and delete the old ones
-        let target = await prisma.campaign.findFirst({ where: { name: newName } })
+        let target = await prisma.campaigns.findFirst({ where: { name: newName } })
         if (target) {
           // move donations from all campaigns in group to target
           let moved = 0
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
           await prisma.campaign.delete({ where: { id: dup.id } })
         }
         // now update keeper name to newName
-        const updated = await prisma.campaign.update({ where: { id: keeper.id }, data: { name: newName } })
+        const updated = await prisma.campaigns.update({ where: { id: keeper.id }, data: { name: newName } })
         results.push({ oldName, newName, action: 'renamed', keptId: keeper.id, movedDonations: moved, updated })
       }
     }
@@ -83,10 +83,10 @@ export default async function handler(req, res) {
         const newName = String(r.newName || '').trim()
         if (!id || !newName) { results.push({ id, newName, error: 'Invalid id or newName' }); continue }
 
-        const current = await prisma.campaign.findUnique({ where: { id }, include: { donations: true } })
+        const current = await prisma.campaigns.findUnique({ where: { id }, select: { id: true, name: true, donations: { select: { id: true, amount: true, date: true, donorId: true } } } })
         if (!current) { results.push({ id, newName, error: 'Campaign not found' }); continue }
 
-        const existing = await prisma.campaign.findFirst({ where: { name: newName } })
+        const existing = await prisma.campaigns.findFirst({ where: { name: newName } })
         if (existing && existing.id !== current.id) {
           // move donations into existing and delete current
           const upd = await prisma.donation.updateMany({ where: { campaignId: current.id }, data: { campaignId: existing.id } })
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
         }
 
         // otherwise update current name
-        const updated = await prisma.campaign.update({ where: { id }, data: { name: newName } })
+          const updated = await prisma.campaigns.update({ where: { id }, data: { name: newName } })
         results.push({ id, newName, action: 'renamed', updated })
       }
     }

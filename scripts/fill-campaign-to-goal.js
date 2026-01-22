@@ -6,7 +6,10 @@ async function main(){
   const prisma = getPrisma()
   const nameArg = process.argv[2] || 'Holiday Giving Drive 2025'
   try{
-    const campaign = await prisma.campaigns.findFirst({ where: { name: nameArg }, include: { donations: true } })
+    const campaign = await prisma.campaigns.findFirst({
+      where: { name: nameArg },
+      select: { id: true, name: true, goal: true, approved: true, active: true, donations: { select: { id: true, amount: true, date: true, donorId: true } } }
+    })
     if (!campaign) {
       console.error('Campaign not found:', nameArg)
       process.exit(1)

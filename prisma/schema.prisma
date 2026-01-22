@@ -66,6 +66,7 @@ model Campaigns {
   id        String     @id(map: "Campaign_pkey") @default(uuid())
   name      String
   goal      Float?
+  // Ensure campaign date fields exist so Prisma queries selecting all columns succeed
   startAt   DateTime?
   endAt     DateTime?
   active    Boolean    @default(true)
