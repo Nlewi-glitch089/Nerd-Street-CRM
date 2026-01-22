@@ -45,7 +45,7 @@ export default async function handler(req, res) {
           prisma.donor.findMany({ where, orderBy: { lastGiftAt: 'desc' }, skip, take, include: { _count: { select: { donations: true } } } }),
           prisma.donor.count({ where })
         ])
-        const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0, daysSinceLastDonation: d.lastGiftAt ? Math.floor((Date.now() - new Date(d.lastGiftAt).getTime()) / (24*60*60*1000)) : null }))
+        const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0 }))
         return res.status(200).json({ donors: out, q: qnorm, page, pageSize, total })
       }
       let whereAll = undefined
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         prisma.donor.findMany({ where: whereAll, orderBy: { lastGiftAt: 'desc' }, skip, take, include: { _count: { select: { donations: true } } } }),
         typeof whereAll !== 'undefined' ? prisma.donor.count({ where: whereAll }) : prisma.donor.count()
       ])
-      const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0, daysSinceLastDonation: d.lastGiftAt ? Math.floor((Date.now() - new Date(d.lastGiftAt).getTime()) / (24*60*60*1000)) : null }))
+      const out = list.map(d => ({ id: d.id, firstName: d.firstName, lastName: d.lastName, email: d.email, phone: d.phone, active: d.active, totalGiving: d.totalGiving, lastGiftAt: d.lastGiftAt, donationCount: (d._count && d._count.donations) || 0 }))
       return res.status(200).json({ donors: out, page, pageSize, total })
     }
 

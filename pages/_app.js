@@ -104,7 +104,7 @@ function Header() {
         )}
 
         {/* Home link where Back used to be (non-home, non-dashboard routes for non-team users) */}
-        {!isHome && !hideOnDash && user && user.role !== 'TEAM_MEMBER' && (
+        {!isHome && !hideOnDash && user && user.role !== 'TEAM_MEMBER' && !(['/the-problem','/why'].includes(router.pathname)) && (
           <button
             className="btn"
             onClick={(e)=>{
