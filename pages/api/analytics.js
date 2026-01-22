@@ -4,6 +4,7 @@ const prisma = getPrisma()
 export default async function handler(req, res) {
 
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+  const debug = req.query && (req.query.debug === '1' || req.query.debug === 'true')
   
     try {
       console.debug('Analytics: prisma model types:', { donation: typeof prisma.donation, donor: typeof prisma.donor, campaigns: typeof prisma.campaigns })
@@ -108,6 +109,8 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('Analytics API error', err)
     const details = (err && (err.stack || err.message)) || String(err)
-    return res.status(500).json({ error: 'Failed to compute analytics', details: process.env.NODE_ENV === 'production' ? undefined : details })
+    // Allow forcing full details via ?debug=1 even in production for diagnostics
+    const detailsOut = debug ? details : (process.env.NODE_ENV === 'production' ? undefined : details)
+    return res.status(500).json({ error: 'Failed to compute analytics', details: detailsOut })
   }
 }
