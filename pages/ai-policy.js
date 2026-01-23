@@ -6,7 +6,7 @@ export default function AIPolicy() {
       <div style={{marginTop:12, display:'grid', gap:12}}>
         <div className="card problem-card">
           <h4 style={{color:'var(--color-neon)'}}>Model & API Usage</h4>
-          <p style={{marginTop:8, color:'#d0d0d0'}}>This CRM integrates an external language model through a secure, server-side API route. In production, the system is designed to use a responsible AI provider (e.g., OpenAI or equivalent) with scoped API keys and audit logging enabled. All AI requests and responses are logged to support transparency, monitoring, and continuous improvement.</p>
+          <p style={{marginTop:8, color:'#d0d0d0'}}>This CRM integrates an external language model through a secure, server-side API route. In production, the system is designed to use a responsible AI provider (e.g., OpenAI or equivalent) with scoped API keys and audit logging enabled. All AI requests and responses can be downloaded to support transparency, monitoring, and continuous improvement.</p>
         </div>
 
         <div className="card problem-card">
@@ -21,9 +21,9 @@ export default function AIPolicy() {
           <h4 style={{color:'var(--color-neon)'}}>Decision Support Capabilities</h4>
           <p style={{marginTop:8, color:'#d0d0d0'}}>The AI functions as a decision-support tool to help nonprofit teams quickly interpret donor data and plan next steps without requiring advanced analytics skills.</p>
           <div style={{marginTop:10, display:'grid', gap:8}}>
-            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Risk Identification</strong> — flags donors inactive for 6+ months</div>
-            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Trend Analysis</strong> — highlights engagement and seasonal patterns</div>
-            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Action Planning</strong> — suggests outreach timing and cadence</div>
+            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Risk Identification</strong> : Flags donors inactive for 6+ months</div>
+            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Trend Analysis</strong> : Highlights engagement and seasonal patterns</div>
+            <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Action Planning</strong> : Suggests outreach timing and cadence</div>
           </div>
         </div>
 
