@@ -40,18 +40,18 @@ export default async function handler(req, res) {
 
       // Delete existing campaigns with this name (donations deleted via cascade or manually)
       try {
-        const existing = await prisma.campaign.findMany({ where: { name } })
+        const existing = await prisma.campaigns.findMany({ where: { name } })
         for (const ex of existing) {
           // delete donations first
           await prisma.donation.deleteMany({ where: { campaignId: ex.id } })
-          await prisma.campaign.delete({ where: { id: ex.id } })
+          await prisma.campaigns.delete({ where: { id: ex.id } })
         }
       } catch (e) {
         console.warn('Failed to remove existing campaigns for', name, e)
       }
 
       // create campaign
-      const created = await prisma.campaign.create({ data: { name, goal, approved: (donationsAmount + inKindAmount) > 0 } })
+      const created = await prisma.campaigns.create({ data: { name, goal, approved: (donationsAmount + inKindAmount) > 0 } })
 
       // create/upsert a seed donor for this campaign to attribute donations
       const donorEmail = `seed+${created.id}@example.com`

@@ -1,11 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import { getPrisma } from '../../../../lib/prisma'
 import { getUserFromToken } from '../../../../lib/auth'
 
-let prisma
-if (!global.__prisma) {
-  global.__prisma = new PrismaClient()
-}
-prisma = global.__prisma
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   const { id } = req.query

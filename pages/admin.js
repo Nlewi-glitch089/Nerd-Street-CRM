@@ -96,7 +96,7 @@ export default function Admin() {
         }
         // require ADMIN role for this page
         if (data.user.role !== 'ADMIN') {
-          if (mounted) setError('Unauthorized — admin access required')
+          if (mounted) setError('Unauthorized - admin access required')
           return
         }
         if (mounted) setUser(data.user)
@@ -222,8 +222,8 @@ export default function Admin() {
             ])
 
             setAlerts([
-              { title: 'Alienware', note: 'Send co-marketing proposal and content calendar — Due: Dec 14, 2025' },
-              { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms — Due: Dec 19, 2025' }
+              { title: 'Alienware', note: 'Send co-marketing proposal and content calendar - Due: Dec 14, 2025' },
+              { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms - Due: Dec 19, 2025' }
             ])
 
             setAnalytics({ visitors: 1234, conversions: 42, revenue: 500000 })
@@ -253,8 +253,8 @@ export default function Admin() {
                 { title: 'Red Bull Gaming', kind: 'Meeting', note: 'Discussed Q1 2025 tournament schedule and activation opportunities.', date: 'Dec 4, 2025' }
               ],
               alerts: [
-                { title: 'Alienware', note: 'Send co-marketing proposal and content calendar — Due: Dec 14, 2025' },
-                { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms — Due: Dec 19, 2025' }
+                { title: 'Alienware', note: 'Send co-marketing proposal and content calendar - Due: Dec 14, 2025' },
+                { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms - Due: Dec 19, 2025' }
               ],
               analytics: { visitors: 1234, conversions: 42, revenue: 500000 }
             }
@@ -456,15 +456,24 @@ export default function Admin() {
             }
           }
 
-          // Download current AI result as a JSON file
+          // Download the current AI result plus chat history and metadata as a JSON file
           function downloadAiResult() {
             try {
-              if (!aiResult) return
+              if (!aiResult && (!aiChatMessages || aiChatMessages.length === 0)) return
               const now = new Date()
               const pad = (n) => String(n).padStart(2, '0')
               const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
               const filename = `decision-summary-${ts}.json`
-              const blob = new Blob([JSON.stringify(aiResult, null, 2)], { type: 'application/json' })
+
+              const payload = {
+                exportedAt: now.toISOString(),
+                exportedBy: (user && (user.email || user.id)) || null,
+                aiResult: aiResult || null,
+                chat: Array.isArray(aiChatMessages) ? aiChatMessages : [],
+                note: 'Includes AI decision summary and follow-up Q&A from the admin assistant panel'
+              }
+
+              const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
               a.href = url
@@ -560,7 +569,7 @@ export default function Admin() {
               if (!res.ok) {
                 const msg = data?.error || 'Seed failed'
                 const details = data?.details || data?.stack || null
-                setSeedError(msg + (details ? ` — ${details}` : ''))
+                setSeedError(msg + (details ? ` - ${details}` : ''))
                 console.error('Seed API failed response:', data)
                 alert(`Seed failed: ${msg}${details ? '\n\nDetails:\n' + details : ''}`)
                 return
@@ -591,7 +600,7 @@ export default function Admin() {
               if (!res.ok) {
                 const msg = data?.error || 'Seed failed'
                 const details = data?.details || data?.stack || null
-                setSeedError(msg + (details ? ` — ${details}` : ''))
+                setSeedError(msg + (details ? ` - ${details}` : ''))
                 console.error('Seed API failed response:', data)
                 return
               }
@@ -630,6 +639,9 @@ export default function Admin() {
                 </div>
                 <div style={{display:'flex', gap:12}}>
                   {/* Persist Seed button removed for production-like admin UX; seeding still runs automatically when APIs return empty data. */}
+                  {user && user.role === 'ADMIN' && (
+                    <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{ e.preventDefault(); router.push('/admin/settings') }} style={{marginLeft:8}}>⚙️</button>
+                  )}
                   <button className="btn btn-ghost" onClick={handleSignOut}>Logout</button>
                 </div>
               </header>
@@ -1205,7 +1217,7 @@ export default function Admin() {
                           const data = await res.json().catch(()=>null)
                           if (!res.ok) {
                             const msg = data?.error || 'Action failed'
-                            setCampaignActionError(msg + (data?.details ? ` — ${data.details}` : ''))
+                            setCampaignActionError(msg + (data?.details ? ` - ${data.details}` : ''))
                             return
                           }
                           // refresh admin datasets
@@ -1246,7 +1258,7 @@ export default function Admin() {
                           const data = await res.json().catch(()=>null)
                           if (!res.ok) {
                             const msg = data?.error || 'Role change failed'
-                            setRoleChangeError(msg + (data?.details ? ` — ${data.details}` : ''))
+                            setRoleChangeError(msg + (data?.details ? ` - ${data.details}` : ''))
                             return
                           }
                           try { await loadUsers(); } catch (e) { console.warn('Reload users failed', e) }

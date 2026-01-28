@@ -16,7 +16,7 @@ export default function AdminDonors() {
   const [donorEditErrors, setDonorEditErrors] = useState(null)
   const [campaigns, setCampaigns] = useState([])
 
-  const [newDonor, setNewDonor] = useState({ firstName:'', lastName:'', email:'', phone:'' })
+  const [newDonor, setNewDonor] = useState({ firstName:'', lastName:'', email:'', phone:'', initialAmount:'', initialCampaignId:'', initialMethod:'CASH', initialNotes:'' })
   const [adding, setAdding] = useState(false)
   const [donationModal, setDonationModal] = useState(null) // { donor }
   const [donationLoading, setDonationLoading] = useState(false)
@@ -93,8 +93,17 @@ export default function AdminDonors() {
 
       // fetch donor detail from server; if it fails, synthesize a client-side preview
       try {
-        const res = await fetch(`/api/donors/${donor.id}`)
-        if (!res.ok) throw new Error('no-server')
+        const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+        const res = await fetch(`/api/donors/${donor.id}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+        if (!res.ok) {
+          // if unauthorized or forbidden, surface the permission issue instead of showing fake data
+          if (res.status === 401 || res.status === 403) {
+            const errBody = await res.json().catch(()=>({ error: 'Unauthorized' }))
+            setPreviewDonor({ donor, error: errBody?.error || 'Unauthorized' })
+            return
+          }
+          throw new Error('no-server')
+        }
         const data = await res.json()
         const gifts = data.donations || []
         const totalGiving = (gifts || []).reduce((s,x)=>s + (Number(x.amount||0) || 0), 0)
@@ -117,7 +126,7 @@ export default function AdminDonors() {
     } catch (e) { console.warn(e); setPreviewDonor({ donor, error: 'Preview failed' }) }
   }
 
-  // demo generators removed — always rely on server data
+  // demo generators removed - always rely on server data
 
   function filteredDonors(list, term) {
     if (!term || term.trim() === '') return list
@@ -166,6 +175,8 @@ export default function AdminDonors() {
               const label = addedName ? `Created donor: ${addedName}` : 'Donor created'
               const withId = addedId ? `${label} (id: ${addedId})` : label
               setFlashMessage(withId)
+              // auto-open the created donor preview when redirected after create
+              try { if (addedId) { openPreview({ id: addedId, firstName: addedName || '' }) } } catch(e){}
               // remove the query from the URL without reloading
               try { const u = new URL(window.location.href); u.searchParams.delete('added'); u.searchParams.delete('name'); u.searchParams.delete('id'); window.history.replaceState({}, '', u.toString()) } catch(e){}
               setTimeout(()=>setFlashMessage(null), 7000)
@@ -312,7 +323,15 @@ export default function AdminDonors() {
     setAdding(true)
     try{
       const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-      const res = await fetch('/api/donors', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify(newDonor) })
+      const payload = { ...newDonor }
+      // normalize optional donation fields for API
+      if (!payload.initialAmount) {
+        delete payload.initialAmount
+        delete payload.initialCampaignId
+        delete payload.initialMethod
+        delete payload.initialNotes
+      }
+      const res = await fetch('/api/donors', { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify(payload) })
       const text = await res.text().catch(()=>(''))
       let data = {}
       try { data = text ? JSON.parse(text) : {} } catch (e) { data = { __raw: text } }
@@ -322,14 +341,17 @@ export default function AdminDonors() {
         setTimeout(()=>setFlashMessage(null), 7000)
         return
       }
-      // success: show friendly confirmation including the created id
-      const createdName = (data && data.donor && (data.donor.firstName || data.donor.email)) || ''
+      // success: show friendly confirmation including the created id and auto-open detail
       const createdId = (data && data.donor && data.donor.id) || ''
-      setFlashMessage(createdId ? `Created donor: ${createdName} (id: ${createdId})` : `Created donor: ${createdName}`)
+      const createdFirst = (data && data.donor && data.donor.firstName) || ''
+      const createdEmail = (data && data.donor && data.donor.email) || ''
+      const label = createdFirst || createdEmail ? `${createdFirst || createdEmail}` : 'Donor'
+      setFlashMessage(createdId ? `Created donor: ${label} (id: ${createdId})` : `Created donor: ${label}`)
       setTimeout(()=>setFlashMessage(null), 7000)
-      setNewDonor({ firstName:'', lastName:'', email:'', phone:'' })
+      setNewDonor({ firstName:'', lastName:'', email:'', phone:'', initialAmount:'', initialCampaignId:'', initialMethod:'CASH', initialNotes:'' })
       setPage(1)
       await loadDonors(1, pageSize)
+      try { if (createdId) await openPreview({ id: createdId, firstName: createdFirst || createdEmail }) } catch(e) { console.warn('Auto-open preview failed', e) }
     }catch(e){ console.warn(e); alert('Failed to add donor') } finally { setAdding(false) }
   }
 
@@ -374,7 +396,7 @@ export default function AdminDonors() {
                   <div>
                     <div style={{fontWeight:700}}>{d.firstName} {d.lastName || ''}</div>
                     <div style={{fontSize:12, color:'#bbb'}}>
-                      {d.email} — ${d.totalGiving || 0}
+                      {d.email} - ${d.totalGiving || 0}
                       { (typeof d.giftedTotal !== 'undefined') && (
                         <span style={{marginLeft:8, color:'#9be'}}>{`(gifts: $${d.giftedTotal})`}</span>
                       ) }
@@ -414,12 +436,40 @@ export default function AdminDonors() {
         </div>
 
         <aside>
-          <div style={{border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:8}}>
-            <div style={{fontWeight:700, marginBottom:8}}>Add New Donor</div>
-            <div style={{marginTop:8}}>
-              <button className="btn btn-primary" onClick={()=>router.push('/admin/donors/new')}>Add Donor</button>
+            <div style={{border:'1px solid rgba(255,255,255,0.03)', padding:12, borderRadius:8}}>
+              <div style={{fontWeight:700, marginBottom:8}}>Add New Donor</div>
+              <form onSubmit={handleAddDonor} style={{display:'grid', gap:8}}>
+                <input className="input" placeholder="First name" value={newDonor.firstName} onChange={e=>setNewDonor({...newDonor, firstName: e.target.value})} />
+                <input className="input" placeholder="Last name" value={newDonor.lastName} onChange={e=>setNewDonor({...newDonor, lastName: e.target.value})} />
+                <input className="input" placeholder="Email" value={newDonor.email} onChange={e=>setNewDonor({...newDonor, email: e.target.value})} />
+                <input className="input" placeholder="Phone" value={newDonor.phone} onChange={e=>setNewDonor({...newDonor, phone: e.target.value})} />
+
+                <div style={{borderTop:'1px solid rgba(255,255,255,0.03)', paddingTop:8}}>
+                  <div style={{fontSize:12, color:'#bbb', marginBottom:6}}>Optional initial donation</div>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+                    <input className="input" placeholder="Amount" type="number" min="0" step="0.01" value={newDonor.initialAmount} onChange={e=>setNewDonor({...newDonor, initialAmount: e.target.value})} />
+                    <select className="input" value={newDonor.initialCampaignId || ''} onChange={e=>setNewDonor({...newDonor, initialCampaignId: e.target.value})}>
+                      <option value="">Apply to (optional)</option>
+                      {campaigns.map(c => (<option key={c.id} value={c.id}>{c.name || c.title || c.name}</option>))}
+                    </select>
+                  </div>
+                  <div style={{display:'flex', gap:8, marginTop:8}}>
+                    <select className="input" value={newDonor.initialMethod} onChange={e=>setNewDonor({...newDonor, initialMethod: e.target.value})} style={{width:140}}>
+                      <option value="CARD">Card</option>
+                      <option value="CHECK">Check</option>
+                      <option value="CASH">Cash</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                    <input className="input" placeholder="Notes (gift designation)" value={newDonor.initialNotes} onChange={e=>setNewDonor({...newDonor, initialNotes: e.target.value})} />
+                  </div>
+                </div>
+
+                <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:6}}>
+                  <button type="button" className="btn btn-ghost" onClick={()=>{ setNewDonor({ firstName:'', lastName:'', email:'', phone:'', initialAmount:'', initialCampaignId:'', initialMethod:'CASH', initialNotes:'' }) }}>Cancel</button>
+                  <button className="btn btn-primary" disabled={adding}>{adding ? 'Adding...' : 'Add Donor'}</button>
+                </div>
+              </form>
             </div>
-          </div>
 
           
         </aside>
@@ -556,7 +606,7 @@ export default function AdminDonors() {
       {fullDonor && (
         <div className="dialog-backdrop">
           <div style={{width:720, maxHeight:'80vh', overflowY:'auto', background:'var(--color-off-black)', border:'1px solid rgba(255,255,255,0.04)', padding:18, borderRadius:8}}>
-            <h3 style={{color:'var(--color-neon)'}}>{fullDonor.donor.firstName} {fullDonor.donor.lastName || ''} — Full History</h3>
+            <h3 style={{color:'var(--color-neon)'}}>{fullDonor.donor.firstName} {fullDonor.donor.lastName || ''} - Full History</h3>
             <div style={{color:'#bbb', marginTop:8}}>{fullDonor.donor.email}</div>
             <div style={{marginTop:12}}>
               <div style={{fontWeight:700}}>Total Giving: <span style={{color:'var(--color-neon)'}}>${fullDonor.totalGiving || 0}</span></div>

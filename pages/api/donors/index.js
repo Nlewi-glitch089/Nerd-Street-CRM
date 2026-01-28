@@ -1,8 +1,7 @@
 import { getUserFromToken } from '../../../lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { getPrisma } from '../../../lib/prisma'
 
-const prisma = global.__prisma || new PrismaClient()
-if (!global.__prisma) global.__prisma = prisma
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   const auth = req.headers.authorization
@@ -61,13 +60,38 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { firstName, lastName, email, phone, notes, active } = req.body || {}
-      console.log('POST /api/donors called by', actor?.email || actor?.id || 'anonymous', 'body:', { firstName, lastName, email, phone })
+      const { firstName, lastName, email, phone, notes, active, initialAmount, initialCampaignId, initialDate, initialMethod, initialNotes } = req.body || {}
+      console.log('POST /api/donors called by', actor?.email || actor?.id || 'anonymous', 'body:', { firstName, lastName, email, phone, initialAmount })
       if (!firstName || !email) return res.status(400).json({ error: 'firstName and email required' })
       try {
-        const created = await prisma.donor.create({ data: { firstName, lastName, email, phone, notes, active: typeof active === 'boolean' ? active : true } })
+        // Create donor and optional initial donation in a single transaction when provided
+        const result = await prisma.$transaction(async (tx) => {
+          const created = await tx.donor.create({ data: { firstName, lastName, email, phone, notes, active: typeof active === 'boolean' ? active : true } })
+          let donation = null
+          if (initialAmount && !Number.isNaN(Number(initialAmount))) {
+            const amt = parseFloat(initialAmount)
+            const d = {
+              donorId: created.id,
+              amount: amt,
+              campaignId: initialCampaignId ? String(initialCampaignId) : null,
+              date: initialDate ? new Date(initialDate) : new Date(),
+              method: initialMethod ? String(initialMethod) : null,
+              notes: initialNotes ? String(initialNotes) : null
+            }
+            donation = await tx.donation.create({ data: d })
+            try {
+              await tx.donor.update({ where: { id: created.id }, data: { totalGiving: amt, lastGiftAt: donation.date } })
+            } catch (u) { /* non-fatal */ }
+          }
+          return { created, donation }
+        })
+
+        const created = result.created
         console.log('Created donor', created.id, created.email)
-        return res.status(201).json({ donor: { id: created.id, firstName: created.firstName, lastName: created.lastName, email: created.email, phone: created.phone, active: created.active, totalGiving: created.totalGiving } })
+        const out = { id: created.id, firstName: created.firstName, lastName: created.lastName, email: created.email, phone: created.phone, active: created.active, totalGiving: created.totalGiving }
+        // include donation in response when created
+        if (result.donation) out.initialDonation = { id: result.donation.id, amount: result.donation.amount, date: result.donation.date }
+        return res.status(201).json({ donor: out })
       } catch (e) {
         console.error('Failed to create donor', e && e.message ? e.message : e)
         // Prisma unique constraint error code

@@ -37,10 +37,10 @@ export default async function handler(req, res) {
 
       const code = (parsed && parsed.error && parsed.error.code) || (msg.includes('insufficient_quota') ? 'insufficient_quota' : (msg.includes('invalid_api_key') || msg.includes('Incorrect API key') ? 'invalid_api_key' : 'ai_error'))
       if (code === 'insufficient_quota') {
-        return res.status(502).json({ ok: false, code: 'insufficient_quota', message: 'AI temporarily unavailable — quota exhausted' })
+        return res.status(502).json({ ok: false, code: 'insufficient_quota', message: 'AI temporarily unavailable - quota exhausted' })
       }
       if (code === 'invalid_api_key') {
-        return res.status(502).json({ ok: false, code: 'invalid_api_key', message: 'AI misconfigured — invalid API key' })
+        return res.status(502).json({ ok: false, code: 'invalid_api_key', message: 'AI misconfigured - invalid API key' })
       }
       console.error('team ai-question error', err)
       return res.status(500).json({ ok: false, code: 'ai_error', message: 'AI request failed' })

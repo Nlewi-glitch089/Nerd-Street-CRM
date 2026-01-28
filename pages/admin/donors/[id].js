@@ -20,8 +20,11 @@ export default function DonorDetail(){
       try{
           const token = (()=>{ try{ return localStorage.getItem('token') }catch(e){return null} })()
           const res = await fetch(`/api/donors/${id}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
-        if (res.status === 404) return setError('Donor not found')
-        if (!res.ok) { const j = await res.json().catch(()=>({})); return setError(j.error || 'Failed to load donor') }
+        if (res.status === 404) { setError('Donor not found'); return }
+        if (res.status === 401 || res.status === 403) {
+          const j = await res.json().catch(()=>({})); setError(j.error || 'Unauthorized'); return
+        }
+        if (!res.ok) { const txt = await res.text().catch(()=>('')); setError(txt || 'Failed to load donor'); return }
         const json = await res.json()
         setDonor(json.donor)
         setDonations(json.donations || [])
@@ -47,7 +50,7 @@ export default function DonorDetail(){
       <div style={{display:'flex', alignItems:'center', gap:12}}>
         <div>
           <h2 style={{color:'var(--color-neon)', margin:0}}>{donor.firstName} {donor.lastName || ''}</h2>
-          <div style={{fontSize:13, color:'#bbb'}}>{donor.email || '—'} — Total: ${Number(donor.totalGiving||0).toFixed(2)}</div>
+          <div style={{fontSize:13, color:'#bbb'}}>{donor.email || '—'} - Total: ${Number(donor.totalGiving||0).toFixed(2)}</div>
         </div>
         <div style={{marginLeft:'auto', display:'flex', gap:8}}>
           <button className="btn" onClick={()=>router.push('/admin/donors')}>Back</button>
@@ -57,7 +60,7 @@ export default function DonorDetail(){
 
       <section style={{marginTop:18, maxWidth:1000}}>
         <h3 style={{marginTop:0}}>Notes</h3>
-        <div style={{whiteSpace:'pre-wrap', color:'#ddd', background:'rgba(255,255,255,0.02)', padding:12, borderRadius:6}}>{donor.notes || '—'}</div>
+        <div style={{whiteSpace:'pre-wrap', color:'#ddd', background:'rgba(255,255,255,0.02)', padding:12, borderRadius:6}}>{donor.notes || '-'}</div>
 
         <h3 style={{marginTop:20}}>Donations</h3>
         {donations.length===0 ? (

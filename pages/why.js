@@ -12,10 +12,10 @@ export default function Why() {
         <div className="card problem-card">
           <h4 style={{color:'var(--color-neon)'}}>Key Features and Why They Were Chosen</h4>
           <ul className="evidence-list" style={{marginTop:8}}>
-            <li><strong>Donor & Donation Records</strong> — Primary entities for fundraising workflows—essential to track who gives, how much, and when.</li>
-            <li><strong>Dashboard Summaries</strong> — Quick health checks for teams with limited time—at a glance totals, revenue, and engagement trends.</li>
-            <li><strong>AI Insights</strong> — Planning assistance that suggests targeted actions (e.g., outreach cadence, risk flagging) rather than generic summaries.</li>
-            <li><strong>Role-Based Access</strong> — Separate admin and team workflows to protect sensitive operations and maintain data governance.</li>
+            <li><strong>Donor & Donation Records</strong> - Primary entities for fundraising workflows - essential to track who gives, how much, and when.</li>
+            <li><strong>Dashboard Summaries</strong> - Quick health checks for teams with limited time - at a glance totals, revenue, and engagement trends.</li>
+            <li><strong>AI Insights</strong> - Planning assistance that suggests targeted actions (e.g., outreach cadence, risk flagging) rather than generic summaries.</li>
+            <li><strong>Role-Based Access</strong> - Separate admin and team workflows to protect sensitive operations and maintain data governance.</li>
           </ul>
         </div>
 

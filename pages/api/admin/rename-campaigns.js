@@ -55,7 +55,7 @@ export default async function handler(req, res) {
             if (c.id === target.id) continue
             const upd = await prisma.donation.updateMany({ where: { campaignId: c.id }, data: { campaignId: target.id } })
             moved += upd.count || 0
-            await prisma.campaign.delete({ where: { id: c.id } })
+            await prisma.campaigns.delete({ where: { id: c.id } })
           }
           results.push({ oldName, newName, action: 'mergedIntoExisting', keptId: target.id, movedDonations: moved })
           continue
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
         for (const dup of group.slice(1)) {
           const upd = await prisma.donation.updateMany({ where: { campaignId: dup.id }, data: { campaignId: keeper.id } })
           moved += upd.count || 0
-          await prisma.campaign.delete({ where: { id: dup.id } })
+          await prisma.campaigns.delete({ where: { id: dup.id } })
         }
         // now update keeper name to newName
         const updated = await prisma.campaigns.update({ where: { id: keeper.id }, data: { name: newName } })
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
         if (existing && existing.id !== current.id) {
           // move donations into existing and delete current
           const upd = await prisma.donation.updateMany({ where: { campaignId: current.id }, data: { campaignId: existing.id } })
-          await prisma.campaign.delete({ where: { id: current.id } })
+          await prisma.campaigns.delete({ where: { id: current.id } })
           results.push({ id, newName, action: 'mergedIntoExisting', keptId: existing.id, movedDonations: upd.count || 0 })
           continue
         }

@@ -1,8 +1,9 @@
 import { getUserFromToken } from '../../../lib/auth'
 import { PrismaClient } from '@prisma/client'
 
-const prisma = global.__prisma || new PrismaClient()
-if (!global.__prisma) global.__prisma = prisma
+import { getPrisma } from '../../../lib/prisma'
+
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   const { id } = req.query

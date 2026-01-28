@@ -86,7 +86,7 @@ export default function AdminSettings() {
     saveTimerRef.current = setTimeout(() => setSaveMessage(''), 2200)
   }
 
-  // autosave on changes (debounced) — skip the very first run to avoid showing
+  // autosave on changes (debounced) - skip the very first run to avoid showing
   // a "Settings saved" message immediately after loading existing values.
   useEffect(() => {
     try { clearTimeout(saveTimerRef.current) } catch (e) {}
@@ -194,7 +194,7 @@ export default function AdminSettings() {
                     <div style={{marginTop:8, color:'#bbb', display:'flex', justifyContent:'space-between', gap:8}}>
                       <div style={{flex:1}}>
                         <div style={{fontSize:13}}><strong>Action:</strong> {l.action}</div>
-                        <div style={{fontSize:13}}><strong>Target:</strong> {l.targetType} — {l.targetId}</div>
+                        <div style={{fontSize:13}}><strong>Target:</strong> {l.targetType} - {l.targetId}</div>
                         {l.meta && <div style={{marginTop:6}}><strong>Meta:</strong> <pre style={{whiteSpace:'pre-wrap', margin:0, color:'#ccc'}}>{JSON.stringify(l.meta, null, 2)}</pre></div>}
                       </div>
                       <div style={{minWidth:140, textAlign:'right'}}>
@@ -210,7 +210,7 @@ export default function AdminSettings() {
         </div>
 
         <h3>Developer Information</h3>
-        <p style={{color:'#999', marginTop:0}}>Hidden by default — re-enter your admin password to unlock read-only developer notes.</p>
+        <p style={{color:'#999', marginTop:0}}>Hidden by default - re-enter your admin password to unlock read-only developer notes.</p>
 
         {devLocked ? (
           <div style={{marginTop:12, display:'flex', gap:8, alignItems:'center'}}>
@@ -223,7 +223,7 @@ export default function AdminSettings() {
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:12}}>
               <div>
                 <h4 style={{margin:0}}>Developer Information</h4>
-                <p style={{color:'#ddd', margin:'6px 0 0 0'}}>Developer: Nakerra Lewis — software developer focused on UX-driven, production-minded tools for nonprofits and small teams.</p>
+                <p style={{color:'#ddd', margin:'6px 0 0 0'}}>Developer: Nakerra Lewis - software developer focused on UX-driven, production-minded tools for nonprofits and small teams.</p>
               </div>
               <div style={{display:'flex', gap:8, alignItems:'center'}}>
                 <button className="btn btn-ghost" onClick={()=>setDevLocked(true)}>Lock</button>
@@ -318,7 +318,7 @@ export default function AdminSettings() {
                   <div style={{color:'#ddd', lineHeight:1.6}}>
                     <h4 style={{marginTop:0}}>Developer Reflections</h4>
                     <h5>What challenged me the most</h5>
-                    <p>The most significant challenge was balancing system capability with clarity. It was tempting to add more features or abstractions, but doing so would have increased cognitive load and reduced inspectability. Designing admin interfaces that are both powerful and safe required careful scoping—especially around access control, error handling, and AI-assisted features.</p>
+                    <p>The most significant challenge was balancing system capability with clarity. It was tempting to add more features or abstractions, but doing so would have increased cognitive load and reduced inspectability. Designing admin interfaces that are both powerful and safe required careful scoping - especially around access control, error handling, and AI-assisted features.</p>
 
                     <p>Another challenge was ensuring that AI outputs supported planning without becoming authoritative. This required deliberate constraints on where and how AI was used.</p>
 
@@ -354,19 +354,19 @@ export default function AdminSettings() {
                       </div>
 
                       <h5 style={{marginTop:12, marginBottom:6}}>How AI Improves Decision-Making</h5>
-                      <p style={{marginTop:0, color:'#d0d0d0'}}>AI helps identify donor risk, highlight trends, and propose next steps—enabling small teams to make data-driven decisions faster without requiring deep analytics expertise.</p>
+                      <p style={{marginTop:0, color:'#d0d0d0'}}>AI helps identify donor risk, highlight trends, and propose next steps - enabling small teams to make data-driven decisions faster without requiring deep analytics expertise.</p>
                       <div style={{marginTop:10, display:'grid', gap:8}}>
-                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Risk Identification</strong> — flags dormant donors (6+ months)</div>
-                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Trend Analysis</strong> — identifies seasonal patterns</div>
-                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Action Planning</strong> — suggests outreach cadence</div>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Risk Identification</strong> - flags dormant donors (6+ months)</div>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Trend Analysis</strong> - identifies seasonal patterns</div>
+                        <div style={{border:'1px solid rgba(var(--color-neon-rgb),0.06)', padding:8, borderRadius:6}}><strong style={{color:'var(--color-neon)'}}>Action Planning</strong> - suggests outreach cadence</div>
                       </div>
 
                       <h5 style={{marginTop:12, marginBottom:6}}>Responsible AI Usage</h5>
                       <ul style={{marginTop:8, color:'#d0d0d0'}}>
-                        <li>AI outputs are advisory — human review is required before any donor outreach.</li>
-                        <li>Do not send full PII to the model — donor data is anonymized or aggregated before processing.</li>
+                        <li>AI outputs are advisory - human review is required before any donor outreach.</li>
+                        <li>Do not send full PII to the model - donor data is anonymized or aggregated before processing.</li>
                         <li>Log all model inputs and outputs for an audit trail and continuous improvement.</li>
-                        <li>Admin override is always available — admins can reject, modify, or approve any suggestion before action.</li>
+                        <li>Admin override is always available - admins can reject, modify, or approve any suggestion before action.</li>
                       </ul>
                     </div>
                   </div>

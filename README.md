@@ -318,4 +318,6 @@ This release includes several UX, backend, and AI assistant improvements impleme
 - **Seed data improvements**: demo seed dates adjusted so only a few donors are 30+ days inactive; donations seeding is idempotent to avoid inflation across runs.
 - **Randomized team dashboard for new users**: signup now seeds lightweight, randomized donors, tasks, and campaigns so new accounts look different and more realistic.
 
-If you'd like, I can walk through any of these changes in more detail or revert specific items.
+### Initial donation on create
+
+- Admin donor creation now supports creating an initial donation at the same time as the donor record. The create form (`/admin/donors/new`) exposes optional fields for amount, campaign, payment method, and notes. The server API (`POST /api/donors`) accepts `initialAmount`, `initialCampaignId`, `initialDate`, `initialMethod`, and `initialNotes` and persists the donation in a single transaction, updating donor totals atomically.

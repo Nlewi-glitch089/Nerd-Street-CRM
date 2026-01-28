@@ -73,10 +73,10 @@ export default function AdminRequests() {
             requests.map(r => (
               <div key={r.id} style={{padding:12, borderBottom:'1px solid rgba(255,255,255,0.04)', display:'flex', justifyContent:'space-between'}}>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:700}}>{r.requesterEmail} — <span style={{fontWeight:400}}>{r.scope}</span></div>
+                  <div style={{fontWeight:700}}>{r.requesterEmail} - <span style={{fontWeight:400}}>{r.scope}</span></div>
                   <div style={{color:'#bbb', marginTop:6}}>{r.note}</div>
                   <div style={{color:'#999', marginTop:6}}>Requested: {new Date(r.createdAt).toLocaleString()}</div>
-                  {r.status !== 'PENDING' && <div style={{color:'#999', marginTop:6}}>Status: {r.status} — Reviewed: {r.reviewedAt ? new Date(r.reviewedAt).toLocaleString() : '—'}</div>}
+                  {r.status !== 'PENDING' && <div style={{color:'#999', marginTop:6}}>Status: {r.status} - Reviewed: {r.reviewedAt ? new Date(r.reviewedAt).toLocaleString() : '—'}</div>}
                 </div>
                 <div style={{minWidth:160, display:'flex', flexDirection:'column', gap:8, alignItems:'flex-end'}}>
                   {r.status === 'PENDING' ? (

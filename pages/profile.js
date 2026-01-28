@@ -69,16 +69,16 @@ export default function Profile() {
             <div style={{fontWeight:700, color:'var(--color-neon)', marginBottom:8}}>Account details</div>
             <div style={{display:'grid', gridTemplateColumns:'140px 1fr', gap:12, alignItems:'center'}}>
               <div style={{color:'#bbb'}}>Name</div>
-              <div style={{fontWeight:700}}>{user?.name || '—'}</div>
+                <div style={{fontWeight:700}}>{user?.name || '-'}</div>
 
               <div style={{color:'#bbb'}}>Email</div>
-              <div style={{fontWeight:700}}>{user?.email || '—'}</div>
+              <div style={{fontWeight:700}}>{user?.email || '-'}</div>
 
               <div style={{color:'#bbb'}}>Role</div>
-              <div style={{fontWeight:700}}>{user?.role || '—'}</div>
+              <div style={{fontWeight:700}}>{user?.role || '-'}</div>
 
               <div style={{color:'#bbb'}}>ID</div>
-              <div style={{fontSize:12, color:'#999'}}>{user?.id || '—'}</div>
+              <div style={{fontSize:12, color:'#999'}}>{user?.id || '-'}</div>
             </div>
             <RequestAccessForm userEmail={user?.email} />
           </div>
@@ -91,7 +91,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Recent activity removed from Profile — team dashboard shows activity instead */}
+      {/* Recent activity removed from Profile - team dashboard shows activity instead */}
     </div>
   )
 }
@@ -159,7 +159,7 @@ function RecentActivityList(){
   if (!items || items.length === 0) return <div style={{color:'#888'}}>No recent activity</div>
   return (
     <div style={{display:'flex', flexDirection:'column', gap:10}}>
-      {fromCache && <div style={{fontSize:12,color:'#999'}}>Showing cached activity — updating...</div>}
+      {fromCache && <div style={{fontSize:12,color:'#999'}}>Showing cached activity - updating...</div>}
       {items.map((r,i)=> (
         <div key={r.id || i} style={{padding:10, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6}}>
           <div style={{fontWeight:700}}>{r.title || r.partner || r.title}</div>

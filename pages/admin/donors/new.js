@@ -1,12 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 
 export default function NewDonor(){
   const router = useRouter()
-  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', notes:'', city:'', state:'', zipcode:'', active:true })
+  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', notes:'', city:'', state:'', zipcode:'', active:true, initialAmount:'', initialCampaignId:'', initialMethod:'CASH', initialNotes:'' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
+
+  const [campaigns, setCampaigns] = useState([])
+
+  // load campaigns for Apply To select
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await fetch('/api/campaigns')
+        if (!res.ok) return
+        const data = await res.json()
+        if (!mounted) return
+        setCampaigns(data.campaigns || [])
+      } catch (e) {}
+    })()
+    return () => { mounted = false }
+  }, [])
 
   async function handleSubmit(e){
     e.preventDefault()
@@ -28,7 +45,7 @@ export default function NewDonor(){
       // success: show a short confirmation so user sees the create succeeded
       const name = (data && data.donor && (data.donor.firstName || data.donor.email)) || ''
       const id = (data && data.donor && data.donor.id) || ''
-      setSuccessMessage(id ? `Donor created — adding to database (id: ${id})` : `Donor created — adding to database`)
+      setSuccessMessage(id ? `Donor created - adding to database (id: ${id})` : `Donor created - adding to database`)
       const target = `/admin/donors?added=1${name ? `&name=${encodeURIComponent(name)}` : ''}${id ? `&id=${encodeURIComponent(id)}` : ''}`
       try {
         // brief pause so the success message is visible during redirect
@@ -69,6 +86,26 @@ export default function NewDonor(){
 
           <div style={{gridColumn:'1/-1'}}>
             <textarea className="input" placeholder="Notes" value={form.notes} onChange={e=>setForm({...form, notes: e.target.value})} style={{minHeight:120}} />
+          </div>
+
+          <div style={{gridColumn:'1/-1', borderTop:'1px solid rgba(255,255,255,0.03)', paddingTop:12}}>
+            <div style={{fontWeight:700, marginBottom:8}}>Optional: Create initial donation</div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+              <input className="input" type="number" min="0" step="0.01" placeholder="Amount (e.g. 100.00)" value={form.initialAmount} onChange={e=>setForm({...form, initialAmount: e.target.value})} />
+              <select className="input" value={form.initialCampaignId || ''} onChange={e=>setForm({...form, initialCampaignId: e.target.value})}>
+                <option value="">Apply to (optional)</option>
+                {campaigns.map(c => (<option key={c.id} value={c.id}>{c.name || c.title || c.name}</option>))}
+              </select>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8}}>
+              <select className="input" value={form.initialMethod} onChange={e=>setForm({...form, initialMethod: e.target.value})}>
+                <option value="CARD">Card</option>
+                <option value="CHECK">Check</option>
+                <option value="CASH">Cash</option>
+                <option value="OTHER">Other</option>
+              </select>
+              <input className="input" placeholder="Notes (gift designation)" value={form.initialNotes} onChange={e=>setForm({...form, initialNotes: e.target.value})} />
+            </div>
           </div>
 
           <div style={{gridColumn:'1/-1', display:'flex', justifyContent:'flex-end'}}>

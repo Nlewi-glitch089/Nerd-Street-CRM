@@ -1,10 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { getPrisma } from '../../lib/prisma'
 
-let prisma
-if (!global.__prisma) {
-  global.__prisma = new PrismaClient()
-}
-prisma = global.__prisma
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {

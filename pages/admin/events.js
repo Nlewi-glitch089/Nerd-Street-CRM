@@ -49,7 +49,7 @@ export default function AdminEvents(){
                 <div>
                   <div style={{fontWeight:700}}>{e.title}</div>
                   <div style={{fontSize:12, color:'#bbb'}}>{e.description || ''}</div>
-                  <div style={{fontSize:12, color:'#bbb'}}>When: {e.startAt ? new Date(e.startAt).toLocaleString() : '—'}</div>
+                  <div style={{fontSize:12, color:'#bbb'}}>When: {e.startAt ? new Date(e.startAt).toLocaleString() : '-'}</div>
                 </div>
                 <div style={{display:'flex', gap:8}}>
                   <button className="btn" onClick={()=>setEditingEvent({...e})}>Edit</button>

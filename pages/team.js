@@ -31,7 +31,7 @@ export default function Team() {
     // try to map emails to contact names/titles when possible
     const mapped = owners.map(email => {
       const match = (p.contacts || []).find(c => c.email === email)
-      if (match) return `${match.name}${match.title ? ` — ${match.title}` : ''}`
+      if (match) return `${match.name}${match.title ? ` - ${match.title}` : ''}`
       // fallback: show local team hint
       return email.includes('@') ? `${email}` : email
     })
@@ -70,7 +70,7 @@ export default function Team() {
         }
       }
     } catch (e) {
-      // not JSON — fall through to heading-based parsing
+      // not JSON - fall through to heading-based parsing
     }
 
     const sections = { email: null, agenda: null, summary: null }
@@ -113,12 +113,12 @@ export default function Team() {
       if (found) kind = 'partner'
     }
 
-    if (found) {
-      await generateOutreachArtifacts(found, kind)
-      return
+    if (!found) {
+      await generateOutreachArtifacts({ id: `free-${Date.now()}`, name: q, note: q }, 'task')
     }
 
-    // no explicit item found — generate freeform outreach using the user's query as the subject
+    if (found) {
+    // no explicit item found - generate freeform outreach using the user's query as the subject
     await generateOutreachArtifacts({ id: `free-${Date.now()}`, name: q, note: q }, 'task')
   }
 
@@ -162,6 +162,8 @@ export default function Team() {
     }
   }
 
+  }
+
   // human-friendly timestamp + relative time
   function formatWhen(iso) {
     try {
@@ -198,7 +200,7 @@ export default function Team() {
         }
         // allow TEAM_MEMBER or ADMIN
         if (data.user.role !== 'TEAM_MEMBER' && data.user.role !== 'ADMIN') {
-          if (mounted) setError('Unauthorized — team member access required')
+          if (mounted) setError('Unauthorized - team member access required')
           return
         }
         if (mounted) setUser(data.user)
@@ -313,7 +315,7 @@ export default function Team() {
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
         <div>
           <div style={{color:'var(--color-neon)', fontWeight:800, fontSize:18}}>MY WORKSPACE</div>
-          <div style={{color:'#bbb'}}>Welcome back{user?.name ? `, ${user.name}` : ''}{user?.role ? ` — ${user.role.replace('_',' ')}` : ''}</div>
+          <div style={{color:'#bbb'}}>Welcome back{user?.name ? `, ${user.name}` : ''}{user?.role ? ` - ${user.role.replace('_',' ')}` : ''}</div>
         </div>
         <div style={{display:'flex', gap:12}}>
           <button className="btn" onClick={() => { try { router.push('/profile') } catch(e){ console.warn('Profile nav failed', e) } }}>Profile</button>
@@ -371,7 +373,7 @@ export default function Team() {
               <div>
                 <div style={{textAlign:'right'}}>
                   <div style={{fontSize:12, color:'#bbb'}}>Partnership Health</div>
-                  <div style={{fontSize:22, color:'var(--color-neon)', fontWeight:700}}>{selectedPartner.health || '—'}</div>
+                  <div style={{fontSize:22, color:'var(--color-neon)', fontWeight:700}}>{selectedPartner.health || '-'}</div>
                 </div>
                 <button className="btn btn-ghost" onClick={() => setSelectedPartner(null)} style={{marginTop:8}}>Close</button>
               </div>
@@ -379,10 +381,10 @@ export default function Team() {
             <div style={{display:'flex', gap:20, marginTop:12}}>
               <div style={{flex:1}}>
                 <div style={{display:'flex', gap:12}}>
-                  <div style={{flex:1}}><strong>Contract Value</strong><div style={{marginTop:6}}>{selectedPartner.contractValue || '—'}</div></div>
-                  <div style={{flex:1}}><strong>Start Date</strong><div style={{marginTop:6}}>{selectedPartner.startDate || '—'}</div></div>
-                  <div style={{flex:1}}><strong>End Date</strong><div style={{marginTop:6}}>{selectedPartner.endDate || '—'}</div></div>
-                  <div style={{flex:1}}><strong>Last Contact</strong><div style={{marginTop:6}}>{selectedPartner.lastContact || '—'}</div></div>
+                  <div style={{flex:1}}><strong>Contract Value</strong><div style={{marginTop:6}}>{selectedPartner.contractValue || '-'}</div></div>
+                  <div style={{flex:1}}><strong>Start Date</strong><div style={{marginTop:6}}>{selectedPartner.startDate || '-'}</div></div>
+                  <div style={{flex:1}}><strong>End Date</strong><div style={{marginTop:6}}>{selectedPartner.endDate || '-'}</div></div>
+                  <div style={{flex:1}}><strong>Last Contact</strong><div style={{marginTop:6}}>{selectedPartner.lastContact || '-'}</div></div>
                 </div>
                 {(selectedPartner.interactions || []).length > 0 && (
                   <div style={{marginTop:12}}>
@@ -488,7 +490,7 @@ export default function Team() {
                         {(() => {
                           const name = (f.support && f.support[0] && f.support[0].name) || f.assigned || ''
                           const parts = String(name || '').trim().split(' ').filter(Boolean)
-                          if (parts.length === 0) return '—'
+                          if (parts.length === 0) return '-'
                           if (parts.length === 1) return parts[0].slice(0,2).toUpperCase()
                           return (parts[0][0] + parts[1][0]).toUpperCase()
                         })()}
@@ -498,7 +500,7 @@ export default function Team() {
                         <div style={{fontSize:12, color:'#bbb'}}>{f.note || `${f.days}+ days since contact`}</div>
                         {f.assignedRole && <div style={{fontSize:12, color:'#9ea', marginTop:6}}>Assigned Role: {f.assignedRole}</div>}
                         {f.support && f.support.length > 0 && (
-                          <div style={{fontSize:12, color:'#9ea', marginTop:4}}>Support: {f.support.map(s => s.name + (s.role ? ` — ${s.role}` : '')).join(', ')}</div>
+                          <div style={{fontSize:12, color:'#9ea', marginTop:4}}>Support: {f.support.map(s => s.name + (s.role ? ` - ${s.role}` : '')).join(', ')}</div>
                         )}
                       </div>
                     </div>
@@ -682,9 +684,9 @@ export default function Team() {
                         // friendly handling for quota/key issues
                         if (!res.ok) {
                           if (data?.code === 'insufficient_quota') {
-                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant temporarily unavailable — our AI quota is exhausted. Please contact the admin to update billing.' }])
+                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant temporarily unavailable - our AI quota is exhausted. Please contact the admin to update billing.' }])
                           } else if (data?.code === 'invalid_api_key') {
-                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant misconfigured — AI key invalid. Please contact the admin.' }])
+                            setAiChatMessages(m => [...m, { role: 'assistant', text: 'Assistant misconfigured - AI key invalid. Please contact the admin.' }])
                           } else {
                             setAiChatMessages(m => [...m, { role: 'assistant', text: 'Error: ' + (data?.message || data?.error || 'Request failed') }])
                           }

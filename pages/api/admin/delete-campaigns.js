@@ -30,14 +30,14 @@ export default async function handler(req, res) {
     for (const nameRaw of names) {
       const name = String(nameRaw || '').trim()
       if (!name) { results.push({ name, error: 'Invalid name' }); continue }
-      const found = await prisma.campaign.findMany({ where: { name } })
+      const found = await prisma.campaigns.findMany({ where: { name } })
       if (!found || found.length === 0) { results.push({ name, deleted: 0 }); continue }
       let deletedCount = 0
       for (const c of found) {
         // delete donations first
         const delD = await prisma.donation.deleteMany({ where: { campaignId: c.id } })
         // delete campaign
-        await prisma.campaign.delete({ where: { id: c.id } })
+        await prisma.campaigns.delete({ where: { id: c.id } })
         deletedCount += 1
       }
       results.push({ name, deleted: deletedCount })

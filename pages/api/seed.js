@@ -1,11 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import { getPrisma } from '../../lib/prisma'
 import bcrypt from 'bcryptjs'
 
-let prisma
-if (!global.__prisma) {
-  global.__prisma = new PrismaClient()
-}
-prisma = global.__prisma
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   console.debug('Seed handler invoked, method=', req.method)
@@ -81,15 +77,12 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Database connection failed', details: String(connErr && connErr.message ? connErr.message : connErr) })
     }
     // create sample campaigns from provided list; use findFirst/create to avoid upsert on non-unique fields
+    // Reduced to a single temporary campaign for testing/demo purposes
     const desiredCampaigns = [
-      { name: 'Back-to-School Supply Drive', goal: 15000 },
-      { name: 'Summer Youth Programs Fund', goal: 40000 },
-      { name: 'Neighborhood Health Initiative', goal: 25000 },
-      { name: 'Technology Access Campaign', goal: 60000 },
-      { name: 'Holiday Giving Drive 2025', goal: 90000 }
+      { name: 'Temporary Test Campaign', goal: 10000 }
     ]
     const campaignsByName = {}
-    const approvedCampaignNames = new Set(['Back-to-School Supply Drive', 'Summer Youth Programs Fund', 'Holiday Giving Drive 2025'])
+    const approvedCampaignNames = new Set([])
     for (const cd of desiredCampaigns) {
       try {
         phase = `ensure-campaign:${cd.name}`
@@ -113,9 +106,12 @@ export default async function handler(req, res) {
       }
     }
     // preserve variables used later in donation creation for backward compatibility
-    const campaign1 = campaignsByName['Back-to-School Supply Drive']
-    const campaign2 = campaignsByName['Summer Youth Programs Fund']
-    const campaignHoliday = campaignsByName['Holiday Giving Drive 2025']
+    // If the original campaign names aren't present (we reduced the seed list),
+    // fall back to any created campaign so donation rows have a valid campaignId.
+    const anyCampaign = Object.values(campaignsByName)[0] || null
+    const campaign1 = campaignsByName['Back-to-School Supply Drive'] || anyCampaign
+    const campaign2 = campaignsByName['Summer Youth Programs Fund'] || anyCampaign
+    const campaignHoliday = campaignsByName['Holiday Giving Drive 2025'] || anyCampaign
 
     // create sample donors
     // helper for relative dates so seeded data can be consistent across runs
@@ -428,8 +424,8 @@ export default async function handler(req, res) {
         { title: 'Red Bull Gaming', kind: 'Meeting', note: 'Discussed Q1 2025 tournament schedule and activation opportunities.', date: 'Dec 4, 2025' }
       ],
       alerts: [
-        { title: 'Alienware', note: 'Send co-marketing proposal and content calendar — Due: Dec 14, 2025' },
-        { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms — Due: Dec 19, 2025' }
+        { title: 'Alienware', note: 'Send co-marketing proposal and content calendar - Due: Dec 14, 2025' },
+        { title: 'Red Bull Gaming', note: 'Reach out to discuss 2025 renewal terms - Due: Dec 19, 2025' }
       ],
       tasks: tasksSeed,
       followUps: enrichedFollowUps,

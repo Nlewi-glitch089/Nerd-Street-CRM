@@ -60,8 +60,8 @@ export default function AdminUsers() {
           {users.length === 0 ? (<div style={{color:'#888'}}>No users</div>) : users.map(u => (
             <div key={u.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:8, borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
               <div>
-                <div style={{fontWeight:700}}>{u.name || '(no name)'} {u.email ? <span style={{fontSize:12, color:'#bbb', marginLeft:8}}>— {u.email}</span> : null}</div>
-                <div style={{fontSize:12, color:'#bbb'}}>Role: {u.role} — Active: {u.active ? 'Yes' : 'No'} {u.deactivatedAt ? ` — Deactivated: ${new Date(u.deactivatedAt).toLocaleString()}` : ''}</div>
+                <div style={{fontWeight:700}}>{u.name || '(no name)'} {u.email ? <span style={{fontSize:12, color:'#bbb', marginLeft:8}}> - {u.email}</span> : null}</div>
+                <div style={{fontSize:12, color:'#bbb'}}>Role: {u.role} - Active: {u.active ? 'Yes' : 'No'} {u.deactivatedAt ? ` - Deactivated: ${new Date(u.deactivatedAt).toLocaleString()}` : ''}</div>
               </div>
               <div>
                 <button className="btn" onClick={()=>toggleActive(u)}>{u.active ? 'Deactivate' : 'Reactivate'}</button>

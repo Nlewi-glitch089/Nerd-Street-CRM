@@ -176,9 +176,9 @@ export default function AdminCampaigns(){
                 <div key={c.id} style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:8, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:700}}>{c.name || c.title}</div>
-                    <div style={{fontSize:12, color:'#bbb'}}>Raised: ${usedRaised} — Goal: {goal?`$${goal}`:'—'}</div>
+                    <div style={{fontSize:12, color:'#bbb'}}>Raised: ${usedRaised} - Goal: {goal?`$${goal}`:'—'}</div>
                     {(c.startAt || c.endAt) && (
-                      <div style={{fontSize:12, color:'#bbb', marginTop:6}}>Timeframe: {c.startAt ? new Date(c.startAt).toLocaleString() : '—'} → {c.endAt ? new Date(c.endAt).toLocaleString() : '—'}</div>
+                      <div style={{fontSize:12, color:'#bbb', marginTop:6}}>Timeframe: {c.startAt ? new Date(c.startAt).toLocaleString() : '-'} → {c.endAt ? new Date(c.endAt).toLocaleString() : '-'}</div>
                     )}
                     {(c.gifted || c.giftedRaised != null) && (
                       <div style={{fontSize:12, color:'#9be', marginTop:6}}>Raised (gifts): <strong style={{color:'var(--color-neon)'}}>${(c.gifted || c.giftedRaised || 0)}</strong></div>

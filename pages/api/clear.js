@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     const delDonations = await prisma.donation.deleteMany()
     const delTasks = await prisma.task.deleteMany()
     const delDonors = await prisma.donor.deleteMany()
-    const delCampaigns = await prisma.campaign.deleteMany()
+    const delCampaigns = await prisma.campaigns.deleteMany()
 
     return res.status(200).json({ ok: true, deleted: { donations: delDonations.count, tasks: delTasks.count, donors: delDonors.count, campaigns: delCampaigns.count } })
   } catch (err) {

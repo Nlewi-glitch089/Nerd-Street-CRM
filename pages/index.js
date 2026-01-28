@@ -70,7 +70,7 @@ export default function Home() {
         <div className="page-loader" role="status" aria-live="polite">
           <div style={{textAlign:'center'}}>
             <div className="spinner-lg" />
-            <div style={{marginTop:16, color:'#d0d0d0', fontSize:16}}>Loading — preparing the page…</div>
+            <div style={{marginTop:16, color:'#d0d0d0', fontSize:16}}>Loading - preparing the page…</div>
           </div>
         </div>
       )}

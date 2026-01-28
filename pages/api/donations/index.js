@@ -1,8 +1,7 @@
 import { getUserFromToken } from '../../../lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { getPrisma } from '../../../lib/prisma'
 
-const prisma = global.__prisma || new PrismaClient()
-if (!global.__prisma) global.__prisma = prisma
+const prisma = getPrisma()
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

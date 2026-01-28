@@ -6,7 +6,7 @@ export default function TheProblem() {
       <div className="problem-grid" style={{marginTop:12}}>
         <div className="card problem-card">
           <h3>Nonprofits struggle to track donors, donations, and engagement in one clear, actionable system.</h3>
-          <p style={{marginTop:8}}>Teams often juggle spreadsheets, email archives, and fragmented notes—losing sight of relationships, missing renewal windows, and burning out staff with manual administrative work.</p>
+          <p style={{marginTop:8}}>Teams often juggle spreadsheets, email archives, and fragmented notes - losing sight of relationships, missing renewal windows, and burning out staff with manual administrative work.</p>
         </div>
 
         <div className="card problem-card">

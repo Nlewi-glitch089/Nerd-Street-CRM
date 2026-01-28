@@ -62,7 +62,7 @@ async function seedDemoForNewUser(prisma, user) {
   const rand = (arr) => arr[Math.floor(Math.random() * arr.length)]
 
   // simple randomized donors tied to this demo user (emails include user id to avoid collisions)
-  const demoSuffix = (user.id || '').slice(0, 8)
+  const demoSuffix = String(user.id || '').slice(0, 8)
   const demoDonors = [
     { firstName: 'Alex', lastName: 'Reyes' },
     { firstName: 'Jordan', lastName: 'Kim' },

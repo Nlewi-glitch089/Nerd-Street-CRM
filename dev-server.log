@@ -8,10 +8,5 @@
    - Environments: .env.local, .env
 
  ✓ Starting...
- ✓ Ready in 1284ms
-[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
-Campaigns: prisma model types: { campaigns: 'object', donation: 'object' }
- GET /api/campaigns 200 in 1116ms (compile: 90ms, render: 1026ms)
-[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
-Analytics: prisma model types: { donation: 'object', donor: 'object', campaigns: 'object' }
- GET /api/analytics 200 in 912ms (compile: 11ms, render: 901ms)
+ ✓ Ready in 1227ms
+[?25h

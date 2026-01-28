@@ -68,10 +68,10 @@ export default function CampaignDetail() {
               const owners = p.owners || []
               return pname.includes(qname.split(' ')[0]) && owners.includes(pd.user.email)
             })
-            const byFollowUp = (sd.followUps || []).some(f => {
+              const byFollowUp = (sd.followUps || []).some(f => {
               const fname = (f.campaign?.name || f.name || '').toLowerCase()
               if (!fname) return false
-              // support entries may include names — allow if user's name appears in support
+              // support entries may include names - allow if user's name appears in support
               const supportMatch = (f.support || []).some(s => (s.email && s.email === pd.user.email) || (s.name && pd.user.name && s.name.toLowerCase().includes((pd.user.name||'').toLowerCase().split(' ')[0])))
               return fname.includes(qname.split(' ')[0]) && (supportMatch || (f.assignedRole && String(f.assignedRole).toLowerCase().includes((pd.user.role||'').toLowerCase())))
             })
@@ -118,15 +118,15 @@ export default function CampaignDetail() {
       </div>
 
       <div style={{marginTop:12, padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:8}}>
-        <div><strong>Goal:</strong> {campaign.goal ? `$${campaign.goal}` : '—'}</div>
+        <div><strong>Goal:</strong> {campaign.goal ? `$${campaign.goal}` : '-'}</div>
         <div style={{marginTop:6}}><strong>Raised:</strong> ${campaign.raised || 0}</div>
         <div style={{marginTop:6}}><strong>Approved:</strong> {campaign.approved ? 'Yes' : 'No'}</div>
         {(campaign.startAt || campaign.endAt) && (
-          <div style={{marginTop:6}}><strong>Timeframe:</strong> {campaign.startAt ? new Date(campaign.startAt).toLocaleString() : '—'} → {campaign.endAt ? new Date(campaign.endAt).toLocaleString() : '—'}</div>
+          <div style={{marginTop:6}}><strong>Timeframe:</strong> {campaign.startAt ? new Date(campaign.startAt).toLocaleString() : '-'} → {campaign.endAt ? new Date(campaign.endAt).toLocaleString() : '-'}</div>
         )}
 
         <div style={{marginTop:12}}>
-          <em style={{color:'#bbb'}}>Read-only view for collaborators — contact an admin to make changes.</em>
+          <em style={{color:'#bbb'}}>Read-only view for collaborators - contact an admin to make changes.</em>
         </div>
       </div>
     </div>
