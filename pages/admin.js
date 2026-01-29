@@ -30,6 +30,10 @@ export default function Admin() {
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [pendingRequestsByEmail, setPendingRequestsByEmail] = useState({})
+  const [tempAccessMap, setTempAccessMap] = useState({})
+  const [approveMinutesMap, setApproveMinutesMap] = useState({})
+  const [disabledSignins, setDisabledSignins] = useState([])
+  const [showDisabledPanel, setShowDisabledPanel] = useState(false)
   // AI decision summary UI state
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState(null)
@@ -314,13 +318,34 @@ export default function Admin() {
                   const d = await res.json().catch(()=>null)
                   const rows = Array.isArray(d?.requests) ? d.requests : []
                   const map = {}
+                  const active = {}
+                  const now = new Date()
                   for (const r of rows) {
                     const e = (r.requesterEmail || '').toLowerCase()
                     if (!map[e]) map[e] = 0
                     if ((r.status || '').toUpperCase() === 'PENDING') map[e] += 1
+                    if ((r.status || '').toUpperCase() === 'APPROVED' && r.expiresAt) {
+                      const expires = new Date(r.expiresAt)
+                      if (expires > now) {
+                        active[e] = r.expiresAt
+                      }
+                    }
                   }
                   setPendingRequestsByEmail(map)
+                  setTempAccessMap(active)
                 } catch (e) { console.warn('loadPendingRequestsMap failed', e) }
+              }
+
+              async function loadDisabledSignins() {
+                try {
+                  const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                  const res = await fetch('/api/admin/action-log?limit=20', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                  if (!res.ok) return
+                  const d = await res.json().catch(()=>null)
+                  const rows = Array.isArray(d?.logs) ? d.logs : []
+                  const disabled = rows.filter(r => String(r.action || '').toLowerCase() === 'signin_attempt_disabled')
+                  setDisabledSignins(disabled.slice(0,10))
+                } catch (e) { console.warn('loadDisabledSignins failed', e) }
               }
 
           // load donors so the admin dashboard shows live donor/donation data on sign-in
@@ -640,9 +665,14 @@ export default function Admin() {
                 <div style={{display:'flex', gap:12}}>
                   {/* Persist Seed button removed for production-like admin UX; seeding still runs automatically when APIs return empty data. */}
                   {user && user.role === 'ADMIN' && (
-                    <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{ e.preventDefault(); router.push('/admin/settings') }} style={{marginLeft:8}}>
-                      ⚙️
-                    </button>
+                    <>
+                      <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{ e.preventDefault(); router.push('/admin/settings') }} style={{marginLeft:8}}>
+                        ⚙️
+                      </button>
+                      <button className="btn btn-ghost" title="Disabled sign-in attempts" onClick={async ()=>{ try { setShowDisabledPanel(s=>!s); await loadDisabledSignins(); } catch(e){} }} style={{marginLeft:8}}>
+                        🔔{disabledSignins && disabledSignins.length ? (<span style={{marginLeft:6, fontSize:12, color:'var(--color-neon)'}}>{disabledSignins.length}</span>) : null}
+                      </button>
+                    </>
                   )}
                   <button className="btn btn-ghost" onClick={handleSignOut}>Logout</button>
                 </div>
@@ -651,6 +681,27 @@ export default function Admin() {
               {signOutMessage && (
                 <div style={{position:'fixed', right:20, top:20, background:'rgba(0,0,0,0.8)', color:'var(--color-neon)', padding:'10px 14px', borderRadius:8, border:'1px solid rgba(57,255,20,0.08)'}}>
                   {signOutMessage}
+                </div>
+              )}
+
+              {showDisabledPanel && (
+                <div style={{marginTop:12, padding:12, border:'1px solid rgba(255,77,77,0.06)', borderRadius:8, background:'#100', color:'#fff'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <div style={{fontWeight:700}}>Disabled Sign-in Attempts</div>
+                    <div style={{fontSize:12, color:'#bbb'}}>{disabledSignins ? disabledSignins.length : 0} recent</div>
+                  </div>
+                  <div style={{marginTop:8, maxHeight:160, overflow:'auto'}}>
+                    {(!disabledSignins || disabledSignins.length===0) ? (
+                      <div style={{color:'#888'}}>No recent disabled sign-ins.</div>
+                    ) : (
+                      disabledSignins.map((s, i) => (
+                        <div key={s.id || i} style={{padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
+                          <div style={{fontSize:13, color:'#fff'}}>{s.actorEmail || s.meta?.email || s.details || 'Unknown'}</div>
+                          <div style={{fontSize:12, color:'#bbb'}}>{s.reason || s.action || ''} — {new Date(s.createdAt).toLocaleString()}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -691,14 +742,25 @@ export default function Admin() {
                                 <div style={{display:'flex', alignItems:'center', gap:8}}>
                                   <div style={{fontSize:12, color:'#bbb'}}>{u.email}</div>
                                   {!u.active && (<div style={{fontSize:12, color:'#ffb3b3', background:'rgba(255,77,77,0.06)', padding:'2px 6px', borderRadius:6}}>Deactivated</div>)}
+                                  {(() => {
+                                    try {
+                                      const e = (u.email || '').toLowerCase()
+                                      const exp = tempAccessMap && tempAccessMap[e]
+                                      if (exp) {
+                                        const expires = new Date(exp)
+                                        const diffMs = Math.max(0, expires - new Date())
+                                        const mins = Math.floor(diffMs / 60000)
+                                        const secs = Math.floor((diffMs % 60000) / 1000)
+                                        const title = `Temporary admin access — expires in ${mins}m ${secs}s (at ${expires.toLocaleString()})`
+                                        return (<div title={title} style={{fontSize:12, color:'#022235', background:'linear-gradient(90deg,#7fcfff,#4db8ff)', padding:'2px 6px', borderRadius:6}}>Temp Admin</div>)
+                                      }
+                                    } catch (e) {}
+                                    return null
+                                  })()}
                                 </div>
                               </div>
                               <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                                {u.role !== 'ADMIN' ? (
-                                  <button className="btn" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('ADMIN'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Promote to Admin</button>
-                                ) : (
-                                  <button className="btn btn-ghost" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('TEAM_MEMBER'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Set as Team Member</button>
-                                )}
+                                {/* Role changes removed: promotions and demotions are disabled to avoid accidental privilege changes. */}
                                 {/* Deactivate / Reactivate user */}
                                 <button className={u.active ? 'btn btn-outline-danger' : 'btn btn-primary'} style={{marginLeft:8}} onClick={async ()=>{
                                   try {
@@ -751,27 +813,38 @@ export default function Admin() {
                                       <div style={{minWidth:140, display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
                                         {r.status === 'PENDING' ? (
                                           <>
-                                            <button className="btn btn-primary" onClick={async ()=>{
-                                              try {
-                                                const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-                                                const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'APPROVE' }) })
-                                                if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
-                                                // refresh
-                                                const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
-                                                const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
-                                              } catch (e) { alert('Approve failed: ' + (e.message||e)) }
-                                              try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
-                                            }}>Approve</button>
-                                            <button className="btn btn-ghost" onClick={async ()=>{
-                                              try {
-                                                const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
-                                                const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'DENY' }) })
-                                                if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
-                                                const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
-                                                const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
-                                                } catch (e) { alert('Deny failed: ' + (e.message||e)) }
-                                                try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
-                                            }}>Deny</button>
+                                            <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                              <select value={String(approveMinutesMap[r.id] || '5')} onChange={(e)=>{ const v = e.target.value; setApproveMinutesMap(m=>({...(m||{}), [r.id]: v})) }} style={{background:'#070707', color:'#fff', padding:'6px', borderRadius:6, border:'1px solid rgba(255,255,255,0.04)'}}>
+                                                <option value="2">2 minutes</option>
+                                                <option value="3">3 minutes</option>
+                                                <option value="4">4 minutes</option>
+                                                <option value="5">5 minutes</option>
+                                              </select>
+                                              <div style={{display:'flex', gap:6}}>
+                                                <button className="btn btn-primary" onClick={async ()=>{
+                                                  try {
+                                                    const mins = parseInt(approveMinutesMap[r.id] || 5, 10)
+                                                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                                    const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'APPROVE', expiresMinutes: mins }) })
+                                                    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                                    // refresh
+                                                    const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                                                    const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
+                                                  } catch (e) { alert('Approve failed: ' + (e.message||e)) }
+                                                  try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
+                                                }}>Approve</button>
+                                                <button className="btn btn-ghost" onClick={async ()=>{
+                                                  try {
+                                                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                                    const res = await fetch(`/api/admin/request-access/${r.id}/decision`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ decision: 'DENY' }) })
+                                                    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                                    const rr = await fetch(`/api/admin/request-access?email=${encodeURIComponent(u.email)}`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{} ) } })
+                                                    const d2 = await rr.json().catch(()=>({})); setSelectedRequests(d2.requests || [])
+                                                    } catch (e) { alert('Deny failed: ' + (e.message||e)) }
+                                                    try { await loadPendingRequestsCount().catch(()=>{}); await loadPendingRequestsMap().catch(()=>{}) } catch (e) {}
+                                                }}>Deny</button>
+                                              </div>
+                                            </div>
                                           </>
                                         ) : (
                                           <div style={{color:'#aaa'}}>{r.status}</div>

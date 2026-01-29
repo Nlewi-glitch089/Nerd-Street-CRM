@@ -61,8 +61,19 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Account disabled: your access has been revoked. Contact your administrator.' })
     }
 
-    const token = signToken({ userId: user.id, email: user.email })
-    return res.status(201).json({ ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+    // Check for an approved, unexpired TempAccessRequest for this user so we can
+    // grant temporary ADMIN access without changing the permanent `user.role`.
+    try {
+      const now = new Date()
+      const temp = await prisma.tempAccessRequest.findFirst({ where: { requesterId: user.id, status: 'APPROVED', expiresAt: { gt: now } }, orderBy: { expiresAt: 'desc' } })
+      const effectiveRole = temp ? 'ADMIN' : user.role
+      const token = signToken({ userId: user.id, email: user.email, role: effectiveRole })
+      return res.status(201).json({ ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: effectiveRole, _tempAccessExpiresAt: temp ? temp.expiresAt : null } })
+    } catch (e) {
+      console.warn('Failed to evaluate temp access for login', e)
+      const token = signToken({ userId: user.id, email: user.email })
+      return res.status(201).json({ ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+    }
   } catch (err) {
     console.error('login handler error', err)
     return res.status(500).json({ error: (err && err.message) || String(err) })

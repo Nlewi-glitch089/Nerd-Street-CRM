@@ -22,24 +22,23 @@ export default async function handler(req, res) {
 
     const data = { status, reviewedBy: user.id, reviewedAt: new Date() }
     if (status === 'APPROVED') {
-      const hrs = parseInt(expiresHours || process.env.REQUEST_EXPIRES_HOURS || '72', 10)
-      data.expiresAt = new Date(Date.now() + hrs * 3600 * 1000)
+      if (body.expiresMinutes) {
+        const mins = parseInt(body.expiresMinutes, 10) || 5
+        data.expiresAt = new Date(Date.now() + mins * 60 * 1000)
+      } else {
+        const hrs = parseInt(expiresHours || process.env.REQUEST_EXPIRES_HOURS || '72', 10)
+        data.expiresAt = new Date(Date.now() + hrs * 3600 * 1000)
+      }
     }
 
     const updated = await prisma.tempAccessRequest.update({ where: { id: String(id) }, data })
 
     // TODO: Optionally create grant records or adjust user permissions here.
 
-    // If approved, grant the requester an ADMIN role so they immediately gain access.
-    // This is a pragmatic, minimal implementation — consider adding a proper
-    // temporary-grants model later and reverting roles on expiry.
-    if (status === 'APPROVED' && updated.requesterId) {
-      try {
-        await prisma.user.update({ where: { id: updated.requesterId }, data: { role: 'ADMIN' } })
-      } catch (err) {
-        console.error('failed to grant admin role to requester', err)
-      }
-    }
+    // Do NOT mutate permanent `user.role`. Instead, an approved TempAccessRequest
+    // with `expiresAt` indicates the requester has temporary admin access until
+    // that timestamp. Login and protected endpoints should honor approved,
+    // non-expired requests when computing effective role.
 
     return res.status(200).json({ ok: true, request: updated })
   } catch (err) {
