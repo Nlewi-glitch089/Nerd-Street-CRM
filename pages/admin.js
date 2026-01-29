@@ -298,6 +298,31 @@ export default function Admin() {
             }
           }
 
+          // client-side user search scoring similar to donors' filtered search
+          function filteredUsers(list, term) {
+            if (!term || term.trim() === '') return list || []
+            const q = term.toLowerCase()
+            const scored = (list || []).map(u => {
+              const name = (u.name || '').toString().toLowerCase()
+              const parts = name.split(/\s+/).filter(Boolean)
+              const first = parts[0] || ''
+              const last = parts.slice(1).join(' ') || ''
+              const email = (u.email || '').toString().toLowerCase()
+              let score = 9999
+              if (q.length === 1) {
+                if (first.startsWith(q) || last.startsWith(q) || email.startsWith(q)) score = 0
+              } else {
+                if (first.startsWith(q)) score = 0
+                else if (last.startsWith(q)) score = 1
+                else if (email.startsWith(q)) score = 2
+                else if (name.startsWith(q)) score = 3
+                else if (first.includes(q) || last.includes(q) || name.includes(q) || email.includes(q)) score = 4
+              }
+              return { user: u, score }
+            }).filter(x => x.score < 9000).sort((a,b) => a.score - b.score).map(x => x.user)
+            return scored
+          }
+
               async function loadPendingRequestsCount() {
                 try {
                   const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
@@ -729,7 +754,7 @@ export default function Admin() {
                       <div style={{fontSize:13, color:'#bbb', marginBottom:8}}>Manage user roles and permissions</div>
                       <input className="input" placeholder="Search users..." value={userSearch} onChange={e=>setUserSearch(e.target.value)} />
                       <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
-                        {(usersList.filter(u => (u.name||u.email||'').toLowerCase().includes(userSearch.toLowerCase()) )).map(u=> (
+                        {filteredUsers(usersList, userSearch).map(u=> (
                           <div key={u.id} style={{display:'flex', flexDirection:'column', gap:8, opacity: u.active === false ? 0.6 : 1}}>
                             <div style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center', background: u.active === false ? '#0a0a0a' : 'transparent'}}>
                               <div>
