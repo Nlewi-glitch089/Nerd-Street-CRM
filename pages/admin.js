@@ -661,7 +661,7 @@ export default function Admin() {
                   <button className={`btn ${tab==='approvals'?'btn-primary':''}`} onClick={()=>setTab('approvals')}>Campaign Approvals</button>
                   <button className={`btn ${tab==='analytics'?'btn-primary':''}`} onClick={()=>setTab('analytics')}>Full Analytics</button>
                   <div style={{marginLeft:'auto', display:'flex', gap:8}}>
-                      <button className="btn" onClick={()=>setAiConfirmOpen(true)} disabled={aiLoading}>{aiLoading ? 'Generating…' : '🤖 Generate AI Decision Summary'}</button>
+                      <button className="btn btn-ai" onClick={()=>setAiConfirmOpen(true)} disabled={aiLoading}>{aiLoading ? 'Generating…' : '🤖 Generate AI Decision Summary'}</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/donors' }}>View Donors</button>
                     <button className="btn" onClick={()=>{ window.location.href = '/admin/campaigns' }}>View Campaigns</button>
                       <button className="btn btn-danger" onClick={() => { setConfirmOpen(true) }} style={{background:'#ff4d4d', color:'#fff', border:'1px solid rgba(255,77,77,0.9)'}}>Clear All Data</button>

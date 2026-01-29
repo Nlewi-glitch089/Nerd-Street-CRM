@@ -128,6 +128,32 @@ body{
   border:1px solid rgba(255,255,255,0.06);
 }
 
+/* Danger / destructive button */
+.btn-danger{
+  background: linear-gradient(180deg, #ff6b6b, #ff4d4d);
+  color: #fff;
+  border-color: rgba(255,77,77,0.9);
+  box-shadow: 0 6px 18px rgba(255,77,77,0.08);
+}
+.btn-danger:hover{ transform: translateY(-1px); filter: brightness(1.03) }
+
+/* Outlined danger for less prominent delete actions */
+.btn-outline-danger{
+  background: transparent;
+  color: #ff8a8a;
+  border: 1px solid rgba(255,77,77,0.18);
+}
+.btn-outline-danger:hover{ box-shadow: 0 6px 18px rgba(255,77,77,0.04); border-color: rgba(255,77,77,0.36) }
+
+/* AI action button (light blue) */
+.btn-ai{
+  background: linear-gradient(180deg, #7fcfff, #4db8ff);
+  color: #022235;
+  border-color: rgba(45,150,255,0.9);
+  box-shadow: 0 6px 18px rgba(77,184,255,0.08);
+}
+.btn-ai:hover{ transform: translateY(-1px); filter: brightness(1.02) }
+
 .btn-ghost:hover{
   border-color: rgba(47,255,85,0.6);
   box-shadow: var(--glow-neon);
