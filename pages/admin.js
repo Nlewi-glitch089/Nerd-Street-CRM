@@ -640,7 +640,12 @@ export default function Admin() {
                 <div style={{display:'flex', gap:12}}>
                   {/* Persist Seed button removed for production-like admin UX; seeding still runs automatically when APIs return empty data. */}
                   {user && user.role === 'ADMIN' && (
-                    <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{ e.preventDefault(); router.push('/admin/settings') }} style={{marginLeft:8}}>⚙️</button>
+                    <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{ e.preventDefault(); router.push('/admin/settings') }} style={{marginLeft:8, padding:'8px 10px'}}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                        <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z" fill="currentColor" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.17c0-.57-.36-1.09-.95-1.5a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06c.39-.39.5-.99.33-1.51A1.65 1.65 0 0 0 5 15V13a1.65 1.65 0 0 0 .33-1.82l-.06-.06A2 2 0 1 1 7.1 8.3l.06.06c.39.39.99.5 1.51.33.43-.18.9-.27 1.38-.27H12c.48 0 .95.09 1.38.27.52.17 1.12.06 1.51-.33l.06-.06A2 2 0 1 1 19.07 8.3l-.06.06c-.39.39-.5.99-.33 1.51.18.43.27.9.27 1.38v2c0 .48-.09.95-.27 1.38-.17.52.06 1.12.33 1.51z" fill="currentColor" opacity="0.9"/>
+                      </svg>
+                    </button>
                   )}
                   <button className="btn btn-ghost" onClick={handleSignOut}>Logout</button>
                 </div>

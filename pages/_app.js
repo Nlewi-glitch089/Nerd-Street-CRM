@@ -124,11 +124,7 @@ function Header() {
           </button>
         )}
 
-        {user?.role === 'ADMIN' && router.pathname && router.pathname.startsWith('/admin') && (
-          <button className="btn btn-ghost" title="Admin Settings" onClick={(e)=>{e.preventDefault(); router.push('/admin/settings')}} style={{marginLeft:8}}>
-            ⚙️
-          </button>
-        )}
+        {/* Admin settings button removed from global header; rendered in admin page header instead */}
       </div>
 
       {homeLoading && (
