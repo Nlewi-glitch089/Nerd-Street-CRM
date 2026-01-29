@@ -51,6 +51,15 @@ export default async function handler(req, res) {
       console.warn('Login failed for', emailNorm)
       return res.status(401).json({ error: 'Invalid credentials' })
     }
+    // If the account has been deactivated, record an action log and block sign-in
+    if (user.active === false) {
+      try {
+        await prisma.actionLog.create({ data: { action: 'signin_attempt_disabled', targetType: 'user', targetId: user.id, actorName: user.email || null, meta: { note: 'Disabled user attempted sign-in', ip: req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null } } })
+      } catch (e) {
+        console.warn('Failed to record disabled sign-in attempt', e)
+      }
+      return res.status(403).json({ error: 'Account disabled: your access has been revoked. Contact your administrator.' })
+    }
 
     const token = signToken({ userId: user.id, email: user.email })
     return res.status(201).json({ ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } })

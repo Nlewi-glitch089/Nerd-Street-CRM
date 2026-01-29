@@ -679,8 +679,8 @@ export default function Admin() {
                       <input className="input" placeholder="Search users..." value={userSearch} onChange={e=>setUserSearch(e.target.value)} />
                       <div style={{marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
                         {(usersList.filter(u => (u.name||u.email||'').toLowerCase().includes(userSearch.toLowerCase()) )).map(u=> (
-                          <div key={u.id} style={{display:'flex', flexDirection:'column', gap:8}}>
-                            <div style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                          <div key={u.id} style={{display:'flex', flexDirection:'column', gap:8, opacity: u.active === false ? 0.6 : 1}}>
+                            <div style={{padding:12, border:'1px solid rgba(255,255,255,0.03)', borderRadius:6, display:'flex', justifyContent:'space-between', alignItems:'center', background: u.active === false ? '#0a0a0a' : 'transparent'}}>
                               <div>
                                 <div style={{fontWeight:700}}>
                                   {u.name} <span style={{background:u.role==='ADMIN'? 'var(--color-neon)':'#444', color:'#000', padding:'2px 6px', borderRadius:6, fontSize:12, marginLeft:8}}>{u.role.toLowerCase()}</span>
@@ -688,7 +688,10 @@ export default function Admin() {
                                     <span style={{marginLeft:8, background:'#ffb86b', color:'#000', padding:'2px 6px', borderRadius:12, fontSize:12, fontWeight:700}}>{pendingRequestsByEmail[((u.email||'').toLowerCase())]}</span>
                                   )}
                                 </div>
-                                <div style={{fontSize:12, color:'#bbb'}}>{u.email}</div>
+                                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                                  <div style={{fontSize:12, color:'#bbb'}}>{u.email}</div>
+                                  {!u.active && (<div style={{fontSize:12, color:'#ffb3b3', background:'rgba(255,77,77,0.06)', padding:'2px 6px', borderRadius:6}}>Deactivated</div>)}
+                                </div>
                               </div>
                               <div style={{display:'flex', gap:8, alignItems:'center'}}>
                                 {u.role !== 'ADMIN' ? (
@@ -696,7 +699,21 @@ export default function Admin() {
                                 ) : (
                                   <button className="btn btn-ghost" onClick={()=>{ setRoleChangeTargetUser(u); setRoleChangeTargetRole('TEAM_MEMBER'); setRoleChangePassword(''); setRoleChangeError(null); setRoleChangeModalOpen(true) }}>Set as Team Member</button>
                                 )}
-                                <button className="btn btn-ghost" onClick={async ()=>{
+                                {/* Deactivate / Reactivate user */}
+                                <button className={u.active ? 'btn btn-outline-danger' : 'btn btn-primary'} style={{marginLeft:8}} onClick={async ()=>{
+                                  try {
+                                    const confirmMsg = u.active ? `Deactivate ${u.email || u.name}? This will prevent them from signing in.` : `Reactivate ${u.email || u.name}?`;
+                                    if (u.active && !confirm(confirmMsg)) return
+                                    const token = (() => { try { return localStorage.getItem('token') } catch (e) { return null } })()
+                                    const res = await fetch(`/api/users/${u.id}/deactivate`, { method: 'POST', headers: { 'Content-Type':'application/json', ...(token?{ Authorization:`Bearer ${token}` }:{} ) }, body: JSON.stringify({ active: !u.active }) })
+                                    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Failed') }
+                                    const d = await res.json()
+                                    // refresh the users list
+                                    try { await loadUsers() } catch (e) {}
+                                  } catch (e) { alert('Action failed: ' + (e.message || e)) }
+                                }}>{u.active ? 'Deactivate' : 'Reactivate'}</button>
+                                
+                                <button className="btn btn-ghost" style={{marginLeft:8}} onClick={async ()=>{
                                   try {
                                     const norm = (u.email || '').toLowerCase()
                                     if (selectedRequestsEmail === norm) {
