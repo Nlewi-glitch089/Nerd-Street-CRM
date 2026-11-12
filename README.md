@@ -1,5 +1,10 @@
 # Nerd Street Donor CRM
 
+## Live application
+
+[Open the deployed application](https://nerd-street-crm.vercel.app)
+
+
 A donor-management application for nonprofit teams. It brings donor records, donations, campaigns, follow-up tasks, and team access into one place.
 
 ## What it includes
