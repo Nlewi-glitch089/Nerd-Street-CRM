@@ -1,8 +1,12 @@
 # Nerd Street Donor CRM
 
-## Live application
+## Deployment link
 
-[Open the deployed application](https://nerd-street-crm.vercel.app)
+GitHub currently lists this as the repository's homepage:
+
+[Open the configured project URL](https://nerd-street-crm.vercel.app)
+
+Confirm the current production deployment in Vercel before sharing this link as a working live demo.
 
 
 A donor-management application for nonprofit teams. It brings donor records, donations, campaigns, follow-up tasks, and team access into one place.
