@@ -22,33 +22,61 @@ A donor-management application for nonprofit teams. It brings donor records, don
 
 ## Requirements
 
-- Node.js and npm
-- A PostgreSQL database
-- A valid `DATABASE_URL` connection string
+- Node.js 22 or newer
+- npm
+- PostgreSQL database
 
 ## Run locally
 
-The Prisma setup runs during package installation. Make sure `DATABASE_URL` is available in your environment before installing dependencies.
+The project uses Prisma with `DATABASE_URL`. The package currently has automatic Prisma preinstall/postinstall scripts, so the steps below use `--ignore-scripts` to make database setup explicit and predictable.
 
-**macOS / Linux / Git Bash**
+1. Create a PostgreSQL database and set its connection string.
 
-```bash
-export DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
-npm install
-npm run dev
-```
+   **macOS / Linux / Git Bash**
+   ```bash
+   export DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
+   ```
 
-**Windows PowerShell**
+   **Windows PowerShell**
+   ```powershell
+   $env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
+   ```
 
-```powershell
-$env:DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
-npm install
-npm run dev
-```
+2. Install dependencies without automatically running Prisma commands:
+
+   ```bash
+   npm install --ignore-scripts
+   ```
+
+3. Generate the Prisma client:
+
+   ```bash
+   npm run prisma:generate
+   ```
+
+4. For a new database, create the tables from the checked-in Prisma schema:
+
+   ```bash
+   npm run db:push
+   ```
+
+   Only use `db:push` when setting up a new database or after reviewing schema changes. Do not use it casually against a production database.
+
+5. (Optional) Add the project's seed data to a development database:
+
+   ```bash
+   npm run db:seed
+   ```
+
+6. Set a unique `JWT_SECRET` in your environment, then start the app:
+
+   ```bash
+   npm run dev
+   ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Do not commit database credentials or other secrets. Use your local environment for private configuration.
+The login code currently has a built-in `dev-secret` fallback for `JWT_SECRET`; set a strong unique value for local and production environments rather than relying on that fallback. Never commit credentials.
 
 ## Available commands
 
@@ -61,6 +89,20 @@ Do not commit database credentials or other secrets. Use your local environment 
 | `npm run db:push` | Push the Prisma schema to the configured database |
 | `npm run prisma:generate` | Generate the Prisma client |
 | `npm run db:seed` | Run the database seed script |
+
+## Deploying to Vercel
+
+The app uses Next.js and can be deployed to Vercel.
+
+1. Make sure the PostgreSQL database is provisioned and its schema is ready.
+2. Import this GitHub repository in [Vercel](https://vercel.com/new).
+3. Keep the detected Next.js framework settings and the default build command, `npm run build`.
+4. Add these environment variables in the Vercel project's Settings → Environment Variables:
+   - `DATABASE_URL` — production PostgreSQL connection string.
+   - `JWT_SECRET` — a strong, unique secret used to sign login tokens.
+5. Deploy and check the build and runtime logs before sharing the application URL.
+
+The repository does not currently document a verified public production URL. Add the stable Vercel production domain here after confirming it in the Vercel project dashboard.
 
 ## Project layout
 
